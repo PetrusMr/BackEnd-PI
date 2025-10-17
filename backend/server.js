@@ -1,4 +1,4 @@
-// dotenv será carregado pelo index.js
+require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
@@ -168,8 +168,14 @@ app.get('/api/historico-reservas', (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
-    console.log(`📊 ${results.length} registros encontrados`);
-    res.json({ success: true, historico: results });
+    // Formatar as datas para remover o timestamp
+    const historicoFormatado = results.map(item => ({
+      ...item,
+      data: new Date(item.data).toISOString().split('T')[0]
+    }));
+    
+    console.log(`📊 ${historicoFormatado.length} registros encontrados`);
+    res.json({ success: true, historico: historicoFormatado });
   });
 });
 
@@ -286,13 +292,15 @@ app.get('/api/agendamentos/todas', (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
-    console.log('Reservas encontradas:', results.length);
-    res.json({ success: true, reservas: results });
+    // Formatar as datas para remover o timestamp
+    const reservasFormatadas = results.map(reserva => ({
+      ...reserva,
+      data: new Date(reserva.data).toISOString().split('T')[0]
+    }));
+    
+    console.log('Reservas encontradas:', reservasFormatadas.length);
+    res.json({ success: true, reservas: reservasFormatadas });
   });
-});
-
-
-
 
 
 // Buscar agendamentos por usuário
@@ -307,7 +315,13 @@ app.get('/api/agendamentos/usuario/:nome', (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
-    res.json({ success: true, agendamentos: results });
+    // Formatar as datas para remover o timestamp
+    const agendamentosFormatados = results.map(agendamento => ({
+      ...agendamento,
+      data: new Date(agendamento.data).toISOString().split('T')[0]
+    }));
+    
+    res.json({ success: true, agendamentos: agendamentosFormatados });
   });
 });
 
