@@ -301,7 +301,7 @@ app.get('/api/agendamentos/todas', (req, res) => {
     console.log('Reservas encontradas:', reservasFormatadas.length);
     res.json({ success: true, reservas: reservasFormatadas });
   });
-
+});
 
 // Buscar agendamentos por usuário
 app.get('/api/agendamentos/usuario/:nome', (req, res) => {
