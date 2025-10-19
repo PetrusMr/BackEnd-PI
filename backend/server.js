@@ -175,8 +175,12 @@ db.connect((err) => {
 
 // Rota raiz para teste
 app.get('/', (req, res) => {
-  console.log('Rota raiz acessada');
-  res.json({ message: 'Servidor EasyControl rodando', porta: port });
+  console.log('🚀 Rota raiz acessada - VERSÃO NOVA:', new Date().toISOString());
+  res.json({ 
+    message: 'Servidor EasyControl rodando - VERSÃO ATUALIZADA', 
+    porta: port,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // ROTA DO HISTÓRICO - POSIÇÃO PRIORITÁRIA
