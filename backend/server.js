@@ -177,7 +177,7 @@ db.connect((err) => {
 app.get('/', (req, res) => {
   console.log('🚀 Rota raiz acessada - VERSÃO NOVA:', new Date().toISOString());
   res.json({ 
-    message: 'Servidor EasyControl rodando - VERSÃO ATUALIZADA', 
+    message: 'Servidor EasyControl rodando - SEM PROTEÇÃO', 
     porta: port,
     timestamp: new Date().toISOString()
   });
