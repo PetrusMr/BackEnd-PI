@@ -143,9 +143,21 @@ const db = mysql.createConnection({
   database: process.env.DB_NAME || 'easycontrol'
 });
 
+// Log das variáveis de ambiente
+console.log('🔧 Variáveis de ambiente:');
+console.log('DB_HOST:', process.env.DB_HOST || 'NÃO DEFINIDA');
+console.log('DB_USER:', process.env.DB_USER || 'NÃO DEFINIDA');
+console.log('DB_NAME:', process.env.DB_NAME || 'NÃO DEFINIDA');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'NÃO DEFINIDA');
+
 db.connect((err) => {
   if (err) {
     console.error('❌ Erro ao conectar com o banco:', err);
+    console.error('❌ Tentando conectar em:', {
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      database: process.env.DB_NAME || 'easycontrol'
+    });
     return;
   }
   console.log('✅ Conectado ao MySQL:', process.env.DB_HOST || 'localhost');
