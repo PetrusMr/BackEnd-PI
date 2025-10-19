@@ -137,10 +137,11 @@ function limparAgendamentosExpirados(db) {
 }
 
 const db = mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'q1w2e3',
-  database: process.env.DB_NAME || 'easycontrol'
+  host: 'sql10.freesqldatabase.com',
+  user: 'sql10803107',
+  password: '88SgnTeTdQ',
+  database: 'sql10803107',
+  port: 3306
 });
 
 // Log das variáveis de ambiente
