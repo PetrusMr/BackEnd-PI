@@ -145,10 +145,19 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error('Erro ao conectar com o banco:', err);
+    console.error('❌ Erro ao conectar com o banco:', err);
     return;
   }
-  console.log('Conectado ao MySQL');
+  console.log('✅ Conectado ao MySQL:', process.env.DB_HOST || 'localhost');
+  
+  // Testar se a tabela usuarios existe
+  db.query('SELECT COUNT(*) as total FROM usuarios', (err, results) => {
+    if (err) {
+      console.error('❌ Erro ao verificar tabela usuarios:', err);
+    } else {
+      console.log('📊 Total de usuários na base:', results[0].total);
+    }
+  });
 });
 
 // Rota raiz para teste
@@ -180,18 +189,30 @@ app.get('/api/historico-reservas', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  console.log('Login recebido');
+  console.log('🔐 Login recebido:', req.body);
   const { usuario, senha } = req.body;
   
+  if (!usuario || !senha) {
+    console.log('❌ Dados incompletos:', { usuario: !!usuario, senha: !!senha });
+    return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+  }
+  
   const query = 'SELECT * FROM usuarios WHERE usuario = ? AND senha = ?';
+  console.log('🔍 Executando query:', query, [usuario, '***']);
+  
   db.query(query, [usuario, senha], (err, results) => {
     if (err) {
+      console.error('❌ Erro na query:', err);
       return res.status(500).json({ error: 'Erro no servidor' });
     }
     
+    console.log('📊 Resultados encontrados:', results.length);
+    
     if (results.length > 0) {
+      console.log('✅ Login bem-sucedido para:', usuario);
       res.json({ success: true, message: 'Login realizado com sucesso' });
     } else {
+      console.log('❌ Login falhou para:', usuario);
       res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
     }
   });
