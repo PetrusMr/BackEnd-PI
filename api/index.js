@@ -1,4 +1,6 @@
 require('dotenv').config();
-const app = require('../backend/server.js');
 
-module.exports = app;
+module.exports = (req, res) => {
+  const app = require('../backend/server-simple.js');
+  return app(req, res);
+};
