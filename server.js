@@ -60,13 +60,26 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // Rota raiz
-app.get('/', (req, res) => {
-  res.json({ 
-    message: '🚀 RAILWAY FUNCIONANDO! EasyControl API', 
-    timestamp: new Date().toISOString(),
-    status: 'ONLINE',
-    usuarios_disponiveis: usuarios.map(u => u.usuario)
-  });
+app.get('/', async (req, res) => {
+  try {
+    // Testar conexão Firestore
+    const testDoc = await db.collection('test').add({ test: true, timestamp: new Date() });
+    await db.collection('test').doc(testDoc.id).delete();
+    
+    res.json({ 
+      message: '🚀 RAILWAY + FIRESTORE FUNCIONANDO!', 
+      timestamp: new Date().toISOString(),
+      status: 'ONLINE',
+      firestore: 'CONECTADO'
+    });
+  } catch (error) {
+    res.json({ 
+      message: '🚀 RAILWAY FUNCIONANDO (Firestore com problema)', 
+      timestamp: new Date().toISOString(),
+      status: 'ONLINE',
+      firestore: 'ERRO: ' + error.message
+    });
+  }
 });
 
 // Login com Firestore
