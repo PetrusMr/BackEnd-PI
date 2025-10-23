@@ -205,29 +205,34 @@ app.get('/api/historico-reservas', (req, res) => {
   });
 });
 
-app.post('/api/login', async (req, res) => {
-  try {
-    console.log('🔐 Login Firestore recebido:', req.body);
-    const { usuario, senha } = req.body;
-    
-    if (!usuario || !senha) {
-      console.log('❌ Dados incompletos:', { usuario: !!usuario, senha: !!senha });
-      return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+app.post('/api/login', (req, res) => {
+  console.log('🔐 Login MySQL recebido:', req.body);
+  const { usuario, senha } = req.body;
+  
+  if (!usuario || !senha) {
+    console.log('❌ Dados incompletos:', { usuario: !!usuario, senha: !!senha });
+    return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+  }
+  
+  const query = 'SELECT * FROM usuarios WHERE usuario = ? AND senha = ?';
+  console.log('🔍 Executando query MySQL:', query, [usuario, '***']);
+  
+  db.query(query, [usuario, senha], (err, results) => {
+    if (err) {
+      console.error('❌ Erro na query MySQL:', err);
+      return res.status(500).json({ error: 'Erro no servidor' });
     }
     
-    const user = await usuarios.login(usuario, senha);
+    console.log('📊 Resultados MySQL encontrados:', results.length);
     
-    if (user) {
-      console.log('✅ Login Firestore bem-sucedido para:', usuario);
+    if (results.length > 0) {
+      console.log('✅ Login MySQL bem-sucedido para:', usuario);
       res.json({ success: true, message: 'Login realizado com sucesso' });
     } else {
-      console.log('❌ Login Firestore falhou para:', usuario);
+      console.log('❌ Login MySQL falhou para:', usuario);
       res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
     }
-  } catch (error) {
-    console.error('❌ Erro no login Firestore:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+  });
 });
 
 app.post('/api/login-supervisor', (req, res) => {
