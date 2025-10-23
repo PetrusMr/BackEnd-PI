@@ -24,6 +24,82 @@ app.get('/', (req, res) => {
   });
 });
 
+// Debug Firebase
+app.get('/api/debug', async (req, res) => {
+  try {
+    console.log('🔧 Debug Firebase - Variáveis:');
+    console.log('PROJECT_ID:', process.env.FIREBASE_PROJECT_ID || 'NÃO DEFINIDA');
+    console.log('CLIENT_EMAIL:', process.env.FIREBASE_CLIENT_EMAIL || 'NÃO DEFINIDA');
+    console.log('PRIVATE_KEY:', process.env.FIREBASE_PRIVATE_KEY ? 'DEFINIDA' : 'NÃO DEFINIDA');
+    
+    // Testar conexão
+    const testDoc = await db.collection('test').add({
+      message: 'Teste Vercel',
+      timestamp: new Date()
+    });
+    
+    // Buscar usuários
+    const usuariosSnapshot = await db.collection('usuarios').get();
+    const usuarios = usuariosSnapshot.docs.map(doc => ({ id: doc.id, usuario: doc.data().usuario }));
+    
+    await db.collection('test').doc(testDoc.id).delete();
+    
+    res.json({
+      success: true,
+      firebase_vars: {
+        project_id: process.env.FIREBASE_PROJECT_ID || 'NÃO DEFINIDA',
+        client_email: process.env.FIREBASE_CLIENT_EMAIL || 'NÃO DEFINIDA',
+        private_key_exists: !!process.env.FIREBASE_PRIVATE_KEY
+      },
+      usuarios_encontrados: usuarios.length,
+      usuarios: usuarios
+    });
+  } catch (error) {
+    console.error('❌ Erro debug:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      firebase_vars: {
+        project_id: process.env.FIREBASE_PROJECT_ID || 'NÃO DEFINIDA',
+        client_email: process.env.FIREBASE_CLIENT_EMAIL || 'NÃO DEFINIDA',
+        private_key_exists: !!process.env.FIREBASE_PRIVATE_KEY
+      }
+    });
+  }
+});
+
+// Criar usuários de exemplo
+app.post('/api/setup', async (req, res) => {
+  try {
+    // Verificar se já existem usuários
+    const usuariosSnapshot = await db.collection('usuarios').get();
+    
+    if (usuariosSnapshot.empty) {
+      // Criar usuários de exemplo
+      await db.collection('usuarios').add({
+        usuario: 'admin',
+        senha: '123',
+        email: 'admin@teste.com',
+        created_at: new Date()
+      });
+      
+      await db.collection('usuarios').add({
+        usuario: 'user1',
+        senha: 'pass1',
+        email: 'user1@teste.com',
+        created_at: new Date()
+      });
+      
+      res.json({ success: true, message: 'Usuários criados com sucesso!' });
+    } else {
+      res.json({ success: true, message: 'Usuários já existem', count: usuariosSnapshot.size });
+    }
+  } catch (error) {
+    console.error('Erro ao criar usuários:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Login
 app.post('/api/login', async (req, res) => {
   try {
