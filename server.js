@@ -254,7 +254,7 @@ app.get('/api/historico-reservas', async (req, res) => {
 });
 
 // Setup inicial - criar dados de exemplo
-app.post('/api/setup-firestore', async (req, res) => {
+app.get('/api/setup-firestore', async (req, res) => {
   try {
     // Criar usuários
     await db.collection('usuarios').add({
