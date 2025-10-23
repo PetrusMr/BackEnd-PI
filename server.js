@@ -69,6 +69,65 @@ app.get('/api/historico-reservas', (req, res) => {
   });
 });
 
+// Gemini Vision API
+app.post('/api/gemini/analyze-image', async (req, res) => {
+  try {
+    const { image, prompt } = req.body;
+    
+    if (!image || !prompt) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Imagem e prompt são obrigatórios' 
+      });
+    }
+
+    const geminiApiKey = 'AIzaSyDRqQaQ2qzRjhQpMQHZg9rFxljBOisRdHs';
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+
+    const requestBody = {
+      contents: [{
+        parts: [
+          { text: prompt },
+          {
+            inline_data: {
+              mime_type: "image/jpeg",
+              data: image.replace(/^data:image\/[a-z]+;base64,/, '')
+            }
+          }
+        ]
+      }]
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await response.json();
+
+    if (data.candidates && data.candidates[0]) {
+      const result = data.candidates[0].content.parts[0].text;
+      res.json({ success: true, result });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erro na análise da imagem',
+        error: data 
+      });
+    }
+  } catch (error) {
+    console.error('Erro Gemini:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno do servidor',
+      error: error.message 
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor Railway rodando na porta ${PORT}`);
 });
