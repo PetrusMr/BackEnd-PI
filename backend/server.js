@@ -406,13 +406,12 @@ setInterval(() => {
 
 
 
-// Rotas Agendamentos
-const agendamentosRoutes = require('./routes/agendamentos');
-app.use('/api/agendamentos', agendamentosRoutes);
+// Rotas externas comentadas para debug
+// const agendamentosRoutes = require('./routes/agendamentos');
+// app.use('/api/agendamentos', agendamentosRoutes);
 
-// Rotas Gemini
-const geminiRoutes = require('./routes/gemini');
-app.use('/api/gemini', geminiRoutes);
+// const geminiRoutes = require('./routes/gemini');
+// app.use('/api/gemini', geminiRoutes);
 
 // Buscar scans por usuário, data e turno
 app.get('/api/scans/usuario/:nome/:data/:turno', (req, res) => {
@@ -448,9 +447,9 @@ app.get('/api/scans/usuario/:nome/:data/:turno', (req, res) => {
   });
 });
 
-// Rotas Scans
-const scansRoutes = require('./routes/scans');
-app.use('/api/scans', scansRoutes);
+// Rotas Scans comentadas para debug
+// const scansRoutes = require('./routes/scans');
+// app.use('/api/scans', scansRoutes);
 
 
 
