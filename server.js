@@ -13,21 +13,19 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const db = mysql.createConnection({
+const dbConfig = {
   host: 'sql10.freesqldatabase.com',
   user: 'sql10804387',
   password: 'PfvDQC2YPa',
   database: 'sql10804387',
-  port: 3306
-});
+  port: 3306,
+  acquireTimeout: 60000,
+  timeout: 60000
+};
 
-db.connect((err) => {
-  if (err) {
-    console.error('❌ Erro ao conectar com MySQL:', err);
-    return;
-  }
-  console.log('✅ Conectado ao MySQL');
-});
+function createConnection() {
+  return mysql.createConnection(dbConfig);
+}
 
 
 
@@ -51,9 +49,11 @@ app.post('/api/login', (req, res) => {
     return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
   }
   
+  const db = createConnection();
   const query = 'SELECT * FROM usuarios WHERE usuario = ? AND senha = ?';
   
   db.query(query, [usuario, senha], (err, results) => {
+    db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
@@ -221,61 +221,48 @@ app.get('/api/agendamentos/todas', (req, res) => {
 
 // Setup inicial
 app.get('/api/setup', (req, res) => {
-  const createTables = `
-    CREATE TABLE IF NOT EXISTS usuarios (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      usuario VARCHAR(50) UNIQUE NOT NULL,
-      senha VARCHAR(50) NOT NULL,
-      email VARCHAR(100),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE TABLE IF NOT EXISTS agendamentos (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      nome VARCHAR(50) NOT NULL,
-      data DATE NOT NULL,
-      horario VARCHAR(20) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE TABLE IF NOT EXISTS supervisor (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      usuario VARCHAR(50) UNIQUE NOT NULL,
-      senha VARCHAR(50) NOT NULL,
-      email VARCHAR(100),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE TABLE IF NOT EXISTS historico_agendamentos (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      nome VARCHAR(50) NOT NULL,
-      data DATE NOT NULL,
-      horario VARCHAR(20) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
+  const db = createConnection();
   
-  db.query(createTables, (err) => {
+  const query1 = `CREATE TABLE IF NOT EXISTS usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario VARCHAR(50) UNIQUE NOT NULL,
+    senha VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  
+  db.query(query1, (err) => {
     if (err) {
-      return res.status(500).json({ success: false, message: 'Erro ao criar tabelas', error: err.message });
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro tabela usuarios', error: err.message });
     }
     
-    const insertUsers = `
-      INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
-      ('admin', '123', 'admin@teste.com'),
-      ('user1', '123', 'user1@teste.com'),
-      ('petrus', '123', 'petrus@teste.com');
-      
-      INSERT IGNORE INTO supervisor (usuario, senha, email) VALUES 
-      ('supervisor', 'admin123', 'supervisor@teste.com');
-    `;
+    const query2 = `CREATE TABLE IF NOT EXISTS agendamentos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nome VARCHAR(50) NOT NULL,
+      data DATE NOT NULL,
+      horario VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`;
     
-    db.query(insertUsers, (err) => {
+    db.query(query2, (err) => {
       if (err) {
-        return res.status(500).json({ success: false, message: 'Erro ao inserir dados', error: err.message });
+        db.end();
+        return res.status(500).json({ success: false, message: 'Erro tabela agendamentos', error: err.message });
       }
       
-      res.json({ success: true, message: 'Banco configurado com sucesso!' });
+      const query3 = `INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
+        ('admin', '123', 'admin@teste.com'),
+        ('user1', '123', 'user1@teste.com')`;
+      
+      db.query(query3, (err) => {
+        db.end();
+        if (err) {
+          return res.status(500).json({ success: false, message: 'Erro inserir dados', error: err.message });
+        }
+        
+        res.json({ success: true, message: 'Banco configurado!' });
+      });
     });
   });
 });
