@@ -121,9 +121,11 @@ app.get('/api/test', (req, res) => {
 // Agendamentos
 app.get('/api/agendamentos/usuario/:nome', (req, res) => {
   const { nome } = req.params;
+  const db = createConnection();
   const query = 'SELECT * FROM agendamentos WHERE nome = ? ORDER BY data, horario';
   
   db.query(query, [nome], (err, results) => {
+    db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
@@ -139,9 +141,11 @@ app.get('/api/agendamentos/usuario/:nome', (req, res) => {
 
 app.get('/api/agendamentos/:data', (req, res) => {
   const { data } = req.params;
+  const db = createConnection();
   const query = 'SELECT horario FROM agendamentos WHERE data = ?';
   
   db.query(query, [data], (err, results) => {
+    db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
@@ -158,20 +162,24 @@ app.post('/api/agendamentos', (req, res) => {
     return res.status(400).json({ success: false, message: 'Nome, data e horário são obrigatórios' });
   }
   
+  const db = createConnection();
   const checkQuery = 'SELECT COUNT(*) as count FROM agendamentos WHERE data = ? AND horario = ?';
   
   db.query(checkQuery, [data, horario], (err, results) => {
     if (err) {
+      db.end();
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
     if (results[0].count > 0) {
+      db.end();
       return res.status(400).json({ success: false, message: 'Horário já ocupado' });
     }
     
     const insertQuery = 'INSERT INTO agendamentos (nome, data, horario) VALUES (?, ?, ?)';
     
     db.query(insertQuery, [nome, data, horario], (err, result) => {
+      db.end();
       if (err) {
         return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
       }
@@ -183,9 +191,11 @@ app.post('/api/agendamentos', (req, res) => {
 
 app.delete('/api/agendamentos/:id', (req, res) => {
   const { id } = req.params;
+  const db = createConnection();
   const query = 'DELETE FROM agendamentos WHERE id = ?';
   
   db.query(query, [id], (err, result) => {
+    db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
@@ -195,9 +205,11 @@ app.delete('/api/agendamentos/:id', (req, res) => {
 });
 
 app.get('/api/agendamentos/todas', (req, res) => {
+  const db = createConnection();
   const query = 'SELECT * FROM agendamentos ORDER BY data, horario';
   
   db.query(query, (err, results) => {
+    db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
