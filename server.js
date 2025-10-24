@@ -225,6 +225,29 @@ app.delete('/api/agendamentos/:id', (req, res) => {
   });
 });
 
+app.get('/api/agendamentos/buscar/:data/:horario', (req, res) => {
+  const { data, horario } = req.params;
+  const db = createConnection();
+  const query = 'SELECT * FROM agendamentos WHERE data = ? AND horario = ?';
+  
+  db.query(query, [data, horario], (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    if (results.length > 0) {
+      const agendamento = {
+        ...results[0],
+        data: new Date(results[0].data).toISOString().split('T')[0]
+      };
+      res.json({ success: true, agendamento });
+    } else {
+      res.json({ success: false, message: 'Agendamento não encontrado' });
+    }
+  });
+});
+
 app.get('/api/reservas', (req, res) => {
   const db = createConnection();
   const query = 'SELECT * FROM agendamentos ORDER BY data, horario';
@@ -250,6 +273,39 @@ app.get('/api/reservas', (req, res) => {
     
     res.json({ success: true, reservas });
   });
+});
+
+app.get('/api/agendamentos/lista/historico', (req, res) => {
+  const db = createConnection();
+  const query = 'SELECT * FROM historico_agendamentos ORDER BY data DESC, horario';
+  
+  db.query(query, (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    const historico = results.map(item => ({
+      ...item,
+      data: new Date(item.data).toISOString().split('T')[0]
+    }));
+    
+    res.json({ success: true, historico });
+  });
+});
+
+app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
+  const { nome, data, horario } = req.params;
+  
+  // Como não temos tabela de scans ainda, retornar dados simulados
+  const scans = [{
+    usuario: nome,
+    tipo_scan: 'entrada',
+    resultado_scan: 'Acesso autorizado',
+    data_hora: `${data} ${horario}:00`
+  }];
+  
+  res.json({ success: true, scans });
 });
 
 
