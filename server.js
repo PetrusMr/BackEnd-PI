@@ -10,29 +10,31 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const dbConfig = {
+const db = mysql.createConnection({
   host: 'sql10.freesqldatabase.com',
   user: 'sql10804387',
   password: 'PfvDQC2YPa',
   database: 'sql10804387',
-  port: 3306,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
-};
+  port: 3306
+});
 
-function getConnection() {
-  return mysql.createConnection(dbConfig);
-}
+db.connect((err) => {
+  if (err) {
+    console.error('❌ Erro ao conectar com MySQL:', err);
+    return;
+  }
+  console.log('✅ Conectado ao MySQL');
+});
 
 
 
 // Rota raiz
 app.get('/', (req, res) => {
   res.json({ 
-    message: '🚀 RAILWAY + MYSQL FUNCIONANDO!', 
+    message: 'Servidor EasyControl rodando', 
     timestamp: new Date().toISOString(),
     status: 'ONLINE',
     database: 'MYSQL'
@@ -49,11 +51,9 @@ app.post('/api/login', (req, res) => {
     return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
   }
   
-  const db = getConnection();
   const query = 'SELECT * FROM usuarios WHERE usuario = ? AND senha = ?';
   
   db.query(query, [usuario, senha], (err, results) => {
-    db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
@@ -221,52 +221,61 @@ app.get('/api/agendamentos/todas', (req, res) => {
 
 // Setup inicial
 app.get('/api/setup', (req, res) => {
-  const db = getConnection();
-  
-  const queries = [
-    `CREATE TABLE IF NOT EXISTS usuarios (
+  const createTables = `
+    CREATE TABLE IF NOT EXISTS usuarios (
       id INT AUTO_INCREMENT PRIMARY KEY,
       usuario VARCHAR(50) UNIQUE NOT NULL,
       senha VARCHAR(50) NOT NULL,
       email VARCHAR(100),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS agendamentos (
+    );
+    
+    CREATE TABLE IF NOT EXISTS agendamentos (
       id INT AUTO_INCREMENT PRIMARY KEY,
       nome VARCHAR(50) NOT NULL,
       data DATE NOT NULL,
       horario VARCHAR(20) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `CREATE TABLE IF NOT EXISTS supervisor (
+    );
+    
+    CREATE TABLE IF NOT EXISTS supervisor (
       id INT AUTO_INCREMENT PRIMARY KEY,
       usuario VARCHAR(50) UNIQUE NOT NULL,
       senha VARCHAR(50) NOT NULL,
       email VARCHAR(100),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
-    `INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
-     ('admin', '123', 'admin@teste.com'),
-     ('user1', '123', 'user1@teste.com'),
-     ('petrus', '123', 'petrus@teste.com')`,
-    `INSERT IGNORE INTO supervisor (usuario, senha, email) VALUES 
-     ('supervisor', 'admin123', 'supervisor@teste.com')`
-  ];
+    );
+    
+    CREATE TABLE IF NOT EXISTS historico_agendamentos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nome VARCHAR(50) NOT NULL,
+      data DATE NOT NULL,
+      horario VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
   
-  let completed = 0;
-  
-  queries.forEach((query, index) => {
-    db.query(query, (err) => {
-      if (err && !err.message.includes('Duplicate entry')) {
-        db.end();
-        return res.status(500).json({ success: false, message: 'Erro no setup', error: err.message });
+  db.query(createTables, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao criar tabelas', error: err.message });
+    }
+    
+    const insertUsers = `
+      INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
+      ('admin', '123', 'admin@teste.com'),
+      ('user1', '123', 'user1@teste.com'),
+      ('petrus', '123', 'petrus@teste.com');
+      
+      INSERT IGNORE INTO supervisor (usuario, senha, email) VALUES 
+      ('supervisor', 'admin123', 'supervisor@teste.com');
+    `;
+    
+    db.query(insertUsers, (err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao inserir dados', error: err.message });
       }
       
-      completed++;
-      if (completed === queries.length) {
-        db.end();
-        res.json({ success: true, message: 'Banco configurado com sucesso!' });
-      }
+      res.json({ success: true, message: 'Banco configurado com sucesso!' });
     });
   });
 });
