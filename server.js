@@ -227,9 +227,10 @@ app.delete('/api/agendamentos/:id', (req, res) => {
 
 app.get('/api/agendamentos/todas', (req, res) => {
   const db = createConnection();
-  const query = 'SELECT * FROM agendamentos ORDER BY data, horario';
+  const hoje = new Date().toISOString().split('T')[0];
+  const query = 'SELECT * FROM agendamentos WHERE data >= ? ORDER BY data, horario';
   
-  db.query(query, (err, results) => {
+  db.query(query, [hoje], (err, results) => {
     db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
