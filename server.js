@@ -225,7 +225,7 @@ app.delete('/api/agendamentos/:id', (req, res) => {
   });
 });
 
-app.get('/api/agendamentos/todas', (req, res) => {
+app.get('/api/reservas', (req, res) => {
   const db = createConnection();
   const query = 'SELECT * FROM agendamentos ORDER BY data, horario';
   
