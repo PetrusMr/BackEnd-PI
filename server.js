@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const admin = require('firebase-admin');
+const mysql = require('mysql2');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,341 +12,273 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Configuração Firebase
-const serviceAccount = {
-  type: "service_account",
-  project_id: process.env.FIREBASE_PROJECT_ID || "projeto-pi-ffde3",
-  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID || "45d48bad150ba2cbcaccea242b6648b6d0a31eb5",
-  private_key: (process.env.FIREBASE_PRIVATE_KEY || `-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCiByQSqABpuyGU
-ngy1hnb48mXvbfgY1QlP+giMxQLFNqtSEKxbV3Q9o9iHUqgKpUffhDeDDKdirMUp
-REf4MZ4thpLdctPWpSSLjqqsnRJdjNR4X7wL0ALohejslDVmDMWrxI/ju7S4w1hE
-h5XDPyegFDmJeyah81gKTH1JrMJPLmAmmypGxYXx6SJHERbQRQlb4Nh6V/GWo7TV
-gPW1UlE0k27iVS1PLMnA9kL1pJF/w9pQBsi7c+cBBv/67iPCM74amqspor6ZNdKQ
-R5NOQnOoKRjH2QGSUpUCUA/igL+Q1uHhTcBglbxiDHxSOqEe0qcxJQToDGNdkBFj
-MrRTO2fpAgMBAAECggEAGaDDhefo2NBuiVFOdU/ldY7xrKNaQKNBq9LCk3F99K+m
-/X4BpRj6G93Um+LpDXYDHkmNdj8EIsltDg/sykce29iTVk+ZTjQkyaYxPMhDZWSn
-HrsVxVCLhTfZFcKDh7axdW/LypugBDFxvrUrbQyKOfm4+BPwkmEpJcffcU3QFjHg
-0eBV1AhB1Meor1yQQr15Q3I7Bh5oBWkfqf1CWx0h/kMGxrkgf58rjMDMZ5WfyKor
-VWagrI9ahFzOOQmUlj+MvtrKEjgl3HFg+kXWJiJHIKk17PtCzZvxFHnpIlFCrys9
-xWpQ+NoE880ficax1BHf82B9YvA2Gi09KIEpQHM/YQKBgQDj2lXDga6zKVql09eX
-Gj0Y/4dX7RTI+rTI42XvYs3xB2TyCZcP9Vwo9LpyGXUZCGGFYijUC6Ruz8X128Gm
-S21xnTes/3ivFDWRggvlZPBFRqi5PLCIDdBp8sGCBmfcNCvGfwlyLBCsoaHW8237
-LoyGAB/cUdf+oO4aJnuAsI1lpQKBgQC2CyTCrgVXhi+d6a+OP+QtyC91Ltaj8jF5
-0njDPQtJt8zpkK6GovkZz4jKLsS/4WGKoRAi8B5Sg1xWyEw1jZcnb4TaYTsyn3HS
-Ol6jfYle3GGJuEX3mDKUjWJCSLN2C91Qz19Dmzss8mZQ1oU8nYycpCSA9q16QyTf
-I90KzDTN9QKBgQDVNJxD0Lk0FGIqAUwerAK3vYNblxB373/y6jWcBoxGGXEvuiGM
-YT7XZAiCc6fKwLjgIrWplStMNUc7g2J0xOeoBEDwtCytRu/JNDMFd6oMaM3AZzWY
-WbTHLsw7atsMhhTgLEceenUv1B6oECi9fRUo3jzx3/OI4/VoqtGt3YaxsQKBgQCK
-BPjiAT5blYkUmNBZcWd2rogMuG5T7pREYKben7GnOotJqkAoI/fo8cgsQjk5oY9q
-o6KwWo0i0iV4RnRBRhCL/akkSQOw5eJOGaMXIV69ZSkuWV/y0JnIt0kAKE6n+Wba
-ld8MSu0ars2UDJEH3At315s1i9ELGU0jQPWd8iU24QKBgD1vLOEgIQJLMZ2hOsGh
-VqUGGanLwmkzhMMfdwDtapoIg1ShJ0pDZbmOiHDrZqno5MHokBO7Uepsw+Q98+4e
-gklJn95+Mt2Ds/CPXZdRD8o+gbVEgljS4zcG1HCbvcwWVPbPYje4newd9fAyMaLO
-Epl7ip5VdfnIjD738lBGe7rs
------END PRIVATE KEY-----`).replace(/\\n/g, '\n'),
-  client_email: process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@projeto-pi-ffde3.iam.gserviceaccount.com",
-  client_id: process.env.FIREBASE_CLIENT_ID || "102938162237868092581",
-  auth_uri: "https://accounts.google.com/o/oauth2/auth",
-  token_uri: "https://oauth2.googleapis.com/token"
-};
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
-
-const db = admin.firestore();
-
-// Rota raiz
-app.get('/', async (req, res) => {
-  try {
-    // Testar conexão Firestore
-    const testDoc = await db.collection('test').add({ test: true, timestamp: new Date() });
-    await db.collection('test').doc(testDoc.id).delete();
-    
-    res.json({ 
-      message: '🚀 RAILWAY + FIRESTORE FUNCIONANDO!', 
-      timestamp: new Date().toISOString(),
-      status: 'ONLINE',
-      firestore: 'CONECTADO'
-    });
-  } catch (error) {
-    res.json({ 
-      message: '🚀 RAILWAY FUNCIONANDO (Firestore com problema)', 
-      timestamp: new Date().toISOString(),
-      status: 'ONLINE',
-      firestore: 'ERRO: ' + error.message
-    });
-  }
+const db = mysql.createConnection({
+  host: 'sql10.freesqldatabase.com',
+  user: 'sql10804387',
+  password: 'PfvDQC2YPa',
+  database: 'sql10804387',
+  port: 3306
 });
 
-// Login com Firestore
-app.post('/api/login', async (req, res) => {
-  try {
-    console.log('🔐 Login Firestore:', req.body);
-    const { usuario, senha } = req.body;
-    
-    if (!usuario || !senha) {
-      return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+db.connect((err) => {
+  if (err) {
+    console.error('❌ Erro ao conectar com MySQL:', err);
+    return;
+  }
+  console.log('✅ Conectado ao MySQL');
+});
+
+
+
+// Rota raiz
+app.get('/', (req, res) => {
+  res.json({ 
+    message: '🚀 RAILWAY + MYSQL FUNCIONANDO!', 
+    timestamp: new Date().toISOString(),
+    status: 'ONLINE',
+    database: 'MYSQL'
+  });
+});
+
+
+
+// Login
+app.post('/api/login', (req, res) => {
+  const { usuario, senha } = req.body;
+  
+  if (!usuario || !senha) {
+    return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+  }
+  
+  const query = 'SELECT * FROM usuarios WHERE usuario = ? AND senha = ?';
+  
+  db.query(query, [usuario, senha], (err, results) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
-    const snapshot = await db.collection('usuarios')
-      .where('usuario', '==', usuario)
-      .where('senha', '==', senha)
-      .get();
-    
-    if (!snapshot.empty) {
-      console.log('✅ Login Firestore sucesso:', usuario);
+    if (results.length > 0) {
       res.json({ success: true, message: 'Login realizado com sucesso' });
     } else {
-      console.log('❌ Login Firestore falhou:', usuario);
       res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
     }
-  } catch (error) {
-    console.error('❌ Erro login Firestore:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+  });
 });
 
 // Login supervisor
-app.post('/api/login-supervisor', async (req, res) => {
-  try {
-    const { usuario, senha } = req.body;
+app.post('/api/login-supervisor', (req, res) => {
+  const { usuario, senha } = req.body;
+  
+  const checkUserQuery = 'SELECT * FROM usuarios WHERE usuario = ?';
+  db.query(checkUserQuery, [usuario], (err, userResults) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
     
-    // Verificar se não é usuário comum
-    const userSnapshot = await db.collection('usuarios').where('usuario', '==', usuario).get();
-    if (!userSnapshot.empty) {
+    if (userResults.length > 0) {
       return res.status(401).json({ success: false, message: 'Acesso negado: usuário não é supervisor' });
     }
     
-    // Verificar supervisor
-    const supervisorSnapshot = await db.collection('supervisor')
-      .where('usuario', '==', usuario)
-      .where('senha', '==', senha)
-      .get();
-    
-    if (!supervisorSnapshot.empty) {
-      res.json({ success: true, message: 'Login de supervisor realizado com sucesso' });
-    } else {
-      res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
-    }
-  } catch (error) {
-    console.error('Erro login supervisor:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+    const query = 'SELECT * FROM supervisor WHERE usuario = ? AND senha = ?';
+    db.query(query, [usuario, senha], (err, results) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+      }
+      
+      if (results.length > 0) {
+        res.json({ success: true, message: 'Login de supervisor realizado com sucesso' });
+      } else {
+        res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
+      }
+    });
+  });
 });
 
 // Teste
-app.get('/api/test', async (req, res) => {
-  try {
-    const snapshot = await db.collection('usuarios').get();
-    const usuarios = snapshot.docs.map(doc => doc.data().usuario);
+app.get('/api/test', (req, res) => {
+  const query = 'SELECT usuario FROM usuarios';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.json({ 
+        success: false, 
+        message: 'Erro no banco',
+        timestamp: new Date().toISOString()
+      });
+    }
     
+    const usuarios = results.map(row => row.usuario);
     res.json({ 
       success: true, 
-      message: 'API RAILWAY + FIRESTORE FUNCIONANDO!',
+      message: 'API RAILWAY + MYSQL FUNCIONANDO!',
       usuarios: usuarios,
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
-    res.json({ 
-      success: true, 
-      message: 'API RAILWAY FUNCIONANDO (sem Firestore)',
-      timestamp: new Date().toISOString()
-    });
-  }
+  });
 });
 
 // Agendamentos
-app.get('/api/agendamentos/usuario/:nome', async (req, res) => {
-  try {
-    const { nome } = req.params;
-    const snapshot = await db.collection('agendamentos')
-      .where('nome', '==', nome)
-      .orderBy('data')
-      .get();
+app.get('/api/agendamentos/usuario/:nome', (req, res) => {
+  const { nome } = req.params;
+  const query = 'SELECT * FROM agendamentos WHERE nome = ? ORDER BY data, horario';
+  
+  db.query(query, [nome], (err, results) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
     
-    const agendamentos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const agendamentos = results.map(agendamento => ({
+      ...agendamento,
+      data: new Date(agendamento.data).toISOString().split('T')[0]
+    }));
+    
     res.json({ success: true, agendamentos });
-  } catch (error) {
-    console.error('Erro agendamentos:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+  });
 });
 
-app.post('/api/agendamentos', async (req, res) => {
-  try {
-    const agendamentoData = { ...req.body, created_at: new Date() };
-    const docRef = await db.collection('agendamentos').add(agendamentoData);
-    res.json({ success: true, id: docRef.id, message: 'Agendamento criado com sucesso' });
-  } catch (error) {
-    console.error('Erro criar agendamento:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+app.get('/api/agendamentos/:data', (req, res) => {
+  const { data } = req.params;
+  const query = 'SELECT horario FROM agendamentos WHERE data = ?';
+  
+  db.query(query, [data], (err, results) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    const horarios = results.map(row => row.horario);
+    res.json({ success: true, horarios });
+  });
 });
 
-app.delete('/api/agendamentos/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await db.collection('agendamentos').doc(id).delete();
+app.post('/api/agendamentos', (req, res) => {
+  const { nome, data, horario } = req.body;
+  
+  if (!nome || !data || !horario) {
+    return res.status(400).json({ success: false, message: 'Nome, data e horário são obrigatórios' });
+  }
+  
+  const checkQuery = 'SELECT COUNT(*) as count FROM agendamentos WHERE data = ? AND horario = ?';
+  
+  db.query(checkQuery, [data, horario], (err, results) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    if (results[0].count > 0) {
+      return res.status(400).json({ success: false, message: 'Horário já ocupado' });
+    }
+    
+    const insertQuery = 'INSERT INTO agendamentos (nome, data, horario) VALUES (?, ?, ?)';
+    
+    db.query(insertQuery, [nome, data, horario], (err, result) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+      }
+      
+      res.json({ success: true, message: 'Agendamento salvo com sucesso', id: result.insertId });
+    });
+  });
+});
+
+app.delete('/api/agendamentos/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'DELETE FROM agendamentos WHERE id = ?';
+  
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
     res.json({ success: true, message: 'Agendamento cancelado com sucesso' });
-  } catch (error) {
-    console.error('Erro cancelar agendamento:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+  });
 });
 
-// Scans
-app.post('/api/scans', async (req, res) => {
-  try {
-    const scanData = { ...req.body, created_at: new Date() };
-    const docRef = await db.collection('scans').add(scanData);
-    res.json({ success: true, id: docRef.id, message: 'Scan registrado com sucesso' });
-  } catch (error) {
-    console.error('Erro registrar scan:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
-});
-
-app.get('/api/scans/usuario/:nome/:data/:turno', async (req, res) => {
-  try {
-    const { nome, data, turno } = req.params;
-    const snapshot = await db.collection('scans')
-      .where('usuario', '==', nome)
-      .get();
-    
-    const scans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    if (scans.length === 0) {
-      res.json({ 
-        success: true, 
-        scans: [{ 
-          usuario: nome, 
-          tipo_scan: 'nenhum', 
-          resultado_scan: 'Não scaneado', 
-          data_hora: data + ' 00:00:00' 
-        }] 
-      });
-    } else {
-      res.json({ success: true, scans });
+app.get('/api/agendamentos/todas', (req, res) => {
+  const query = 'SELECT * FROM agendamentos ORDER BY data, horario';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
-  } catch (error) {
-    console.error('Erro buscar scans:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
+    
+    const reservas = results.map(reserva => ({
+      ...reserva,
+      data: new Date(reserva.data).toISOString().split('T')[0]
+    }));
+    
+    res.json({ success: true, reservas });
+  });
 });
 
-// Histórico Firestore
-app.get('/api/historico-reservas', async (req, res) => {
-  try {
-    const snapshot = await db.collection('historico_agendamentos')
-      .orderBy('created_at', 'desc')
-      .get();
-    
-    const historico = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.json({ success: true, historico });
-  } catch (error) {
-    console.error('Erro buscar histórico:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-  }
-});
 
-// Setup inicial - criar dados de exemplo
-app.get('/api/setup-firestore', async (req, res) => {
-  try {
-    // Criar usuários
-    await db.collection('usuarios').add({
-      usuario: 'admin',
-      senha: '123',
-      email: 'admin@teste.com',
-      created_at: new Date()
-    });
-    
-    await db.collection('usuarios').add({
-      usuario: 'petrus',
-      senha: '123',
-      email: 'petrus@teste.com',
-      created_at: new Date()
-    });
-    
-    // Criar supervisor
-    await db.collection('supervisor').add({
-      usuario: 'supervisor',
-      senha: 'admin123',
-      email: 'supervisor@teste.com',
-      created_at: new Date()
-    });
-    
-    res.json({ success: true, message: 'Firestore configurado com dados iniciais!' });
-  } catch (error) {
-    console.error('Erro setup:', error);
-    res.status(500).json({ success: false, message: 'Erro no setup', error: error.message });
-  }
-});
 
-// Gemini Vision API
-app.post('/api/gemini/analyze-image', async (req, res) => {
-  try {
-    const { image, prompt } = req.body;
+
+
+
+
+
+
+// Setup inicial
+app.get('/api/setup', (req, res) => {
+  const createTables = `
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario VARCHAR(50) UNIQUE NOT NULL,
+      senha VARCHAR(50) NOT NULL,
+      email VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     
-    if (!image || !prompt) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Imagem e prompt são obrigatórios' 
-      });
+    CREATE TABLE IF NOT EXISTS agendamentos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nome VARCHAR(50) NOT NULL,
+      data DATE NOT NULL,
+      horario VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS supervisor (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario VARCHAR(50) UNIQUE NOT NULL,
+      senha VARCHAR(50) NOT NULL,
+      email VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  
+  db.query(createTables, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao criar tabelas', error: err.message });
     }
-
-    const geminiApiKey = 'AIzaSyDRqQaQ2qzRjhQpMQHZg9rFxljBOisRdHs';
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
-
-    const requestBody = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          {
-            inline_data: {
-              mime_type: "image/jpeg",
-              data: image.replace(/^data:image\/[a-z]+;base64,/, '')
-            }
-          }
-        ]
-      }]
-    };
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
+    
+    // Inserir dados iniciais
+    const insertUsers = `
+      INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
+      ('admin', '123', 'admin@teste.com'),
+      ('user1', '123', 'user1@teste.com'),
+      ('petrus', '123', 'petrus@teste.com');
+      
+      INSERT IGNORE INTO supervisor (usuario, senha, email) VALUES 
+      ('supervisor', 'admin123', 'supervisor@teste.com');
+    `;
+    
+    db.query(insertUsers, (err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao inserir dados', error: err.message });
+      }
+      
+      res.json({ success: true, message: 'Banco configurado com sucesso!' });
     });
-
-    const data = await response.json();
-
-    if (data.candidates && data.candidates[0]) {
-      const result = data.candidates[0].content.parts[0].text;
-      res.json({ success: true, result });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erro na análise da imagem',
-        error: data 
-      });
-    }
-  } catch (error) {
-    console.error('Erro Gemini:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erro interno do servidor',
-      error: error.message 
-    });
-  }
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor Railway rodando na porta ${PORT}`);
-});
+
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    console.log(`📊 Usando MySQL como banco de dados`);
+  });
+}
 
 module.exports = app;

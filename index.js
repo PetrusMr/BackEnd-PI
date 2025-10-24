@@ -1,2 +1,2 @@
 require('dotenv').config();
-module.exports = require('./backend/server.js');
+module.exports = require('./server.js');

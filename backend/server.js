@@ -399,6 +399,59 @@ app.get('/api/agendamentos/buscar/:data/:horario', (req, res) => {
   });
 });
 
+// Criar novo agendamento
+app.post('/api/agendamentos', (req, res) => {
+  console.log('📝 Criando novo agendamento:', req.body);
+  const { nome, data, horario } = req.body;
+  
+  if (!nome || !data || !horario) {
+    return res.status(400).json({ success: false, message: 'Nome, data e horário são obrigatórios' });
+  }
+  
+  // Verificar se já existe reserva para este horário
+  const checkQuery = 'SELECT COUNT(*) as count FROM agendamentos WHERE data = ? AND horario = ?';
+  
+  db.query(checkQuery, [data, horario], (err, results) => {
+    if (err) {
+      console.error('Erro ao verificar conflito:', err);
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    if (results[0].count > 0) {
+      return res.status(400).json({ success: false, message: 'Horário já ocupado' });
+    }
+    
+    const insertQuery = 'INSERT INTO agendamentos (nome, data, horario) VALUES (?, ?, ?)';
+    
+    db.query(insertQuery, [nome, data, horario], (err, result) => {
+      if (err) {
+        console.error('Erro ao salvar agendamento:', err);
+        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+      }
+      
+      console.log('✅ Agendamento criado com sucesso:', { nome, data, horario });
+      res.json({ success: true, message: 'Agendamento salvo com sucesso', id: result.insertId });
+    });
+  });
+});
+
+// Buscar horários ocupados para uma data específica
+app.get('/api/agendamentos/:data', (req, res) => {
+  const { data } = req.params;
+  
+  const query = 'SELECT horario FROM agendamentos WHERE data = ?';
+  
+  db.query(query, [data], (err, results) => {
+    if (err) {
+      console.error('Erro ao buscar horários ocupados:', err);
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    const horarios = results.map(row => row.horario);
+    res.json({ success: true, horarios });
+  });
+});
+
 // Executar limpeza de agendamentos expirados a cada hora
 setInterval(() => {
   limparAgendamentosExpirados(db);
