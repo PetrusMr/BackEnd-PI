@@ -308,6 +308,49 @@ app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
   res.json({ success: true, scans });
 });
 
+app.post('/api/mover-historico', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  // Buscar agendamentos passados
+  const selectQuery = 'SELECT * FROM agendamentos WHERE data < ?';
+  
+  db.query(selectQuery, [hoje], (err, results) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    if (results.length === 0) {
+      db.end();
+      return res.json({ success: true, message: 'Nenhum agendamento para mover' });
+    }
+    
+    // Inserir no histórico
+    const insertQuery = 'INSERT INTO historico_agendamentos (nome, data, horario) VALUES ?';
+    const values = results.map(r => [r.nome, r.data, r.horario]);
+    
+    db.query(insertQuery, [values], (err) => {
+      if (err) {
+        db.end();
+        return res.status(500).json({ success: false, message: 'Erro ao inserir histórico' });
+      }
+      
+      // Remover da tabela principal
+      const deleteQuery = 'DELETE FROM agendamentos WHERE data < ?';
+      
+      db.query(deleteQuery, [hoje], (err) => {
+        db.end();
+        if (err) {
+          return res.status(500).json({ success: false, message: 'Erro ao remover agendamentos' });
+        }
+        
+        res.json({ success: true, message: `${results.length} agendamentos movidos para histórico` });
+      });
+    });
+  });
+});
+
 
 
 
