@@ -310,6 +310,37 @@ app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
   res.json({ success: true, scans });
 });
 
+app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
+  const { usuario } = req.params;
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  const query = 'SELECT * FROM agendamentos WHERE nome = ? AND data = ?';
+  
+  db.query(query, [usuario, hoje], (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    if (results.length > 0) {
+      res.json({ 
+        temAgendamento: true, 
+        agendamento: {
+          id: results[0].id,
+          nome: results[0].nome,
+          data: results[0].data,
+          horario: results[0].horario
+        }
+      });
+    } else {
+      res.json({ 
+        temAgendamento: false, 
+        agendamento: null 
+      });
+    }
+  });
+});
+
 app.post('/api/mover-historico', (req, res) => {
   const db = createConnection();
   const hoje = new Date().toISOString().split('T')[0];
