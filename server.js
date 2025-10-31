@@ -363,6 +363,49 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
   });
 });
 
+app.post('/api/scans/salvar-scan', (req, res) => {
+  const { usuario, tipo_scan, resultado_scan, turno } = req.body;
+  
+  if (!usuario || !tipo_scan || !resultado_scan) {
+    return res.status(400).json({ success: false, message: 'Dados obrigatórios faltando' });
+  }
+  
+  const db = createConnection();
+  
+  // Criar tabela se não existir
+  const createTable = `CREATE TABLE IF NOT EXISTS scans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario VARCHAR(50) NOT NULL,
+    tipo_scan VARCHAR(20) NOT NULL,
+    resultado_scan TEXT NOT NULL,
+    turno VARCHAR(20),
+    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  
+  db.query(createTable, (err) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao criar tabela' });
+    }
+    
+    // Inserir scan
+    const insertQuery = 'INSERT INTO scans (usuario, tipo_scan, resultado_scan, turno) VALUES (?, ?, ?, ?)';
+    
+    db.query(insertQuery, [usuario, tipo_scan, resultado_scan, turno], (err, result) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao salvar scan' });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Scan salvo com sucesso',
+        id: result.insertId
+      });
+    });
+  });
+});
+
 app.post('/api/mover-historico', (req, res) => {
   const db = createConnection();
   const hoje = new Date().toISOString().split('T')[0];
