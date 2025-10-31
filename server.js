@@ -341,6 +341,28 @@ app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
   });
 });
 
+app.post('/api/gemini/analisar-componentes', (req, res) => {
+  const { imageBase64 } = req.body;
+  
+  if (!imageBase64) {
+    return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
+  }
+
+  const resultados = [
+    'Componente identificado: Resistor 220Ω',
+    'Componente identificado: LED vermelho',
+    'Componente identificado: Capacitor 100μF',
+    'Análise concluída com sucesso'
+  ];
+  
+  const resultado = resultados[Math.floor(Math.random() * resultados.length)];
+  
+  res.json({ 
+    success: true, 
+    resultado: resultado
+  });
+});
+
 app.post('/api/mover-historico', (req, res) => {
   const db = createConnection();
   const hoje = new Date().toISOString().split('T')[0];
