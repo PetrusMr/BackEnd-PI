@@ -13,12 +13,14 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+require('dotenv').config();
+
 const dbConfig = {
-  host: 'sql10.freesqldatabase.com',
-  user: 'sql10804387',
-  password: 'PfvDQC2YPa',
-  database: 'sql10804387',
-  port: 3306,
+  host: 'shuttle.proxy.rlwy.net',
+  user: 'root',
+  password: 'EnXDVvvfjWbNUhrgInfThiDFgtnKTTAD',
+  database: 'railway',
+  port: 22828,
   acquireTimeout: 60000,
   timeout: 60000
 };
@@ -363,46 +365,56 @@ app.post('/api/mover-historico', (req, res) => {
 app.get('/api/setup', (req, res) => {
   const db = createConnection();
   
-  const query1 = `CREATE TABLE IF NOT EXISTS usuarios (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    usuario VARCHAR(50) UNIQUE NOT NULL,
-    senha VARCHAR(50) NOT NULL,
-    email VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`;
-  
-  db.query(query1, (err) => {
-    if (err) {
-      db.end();
-      return res.status(500).json({ success: false, message: 'Erro tabela usuarios', error: err.message });
-    }
-    
-    const query2 = `CREATE TABLE IF NOT EXISTS agendamentos (
+  const queries = [
+    `CREATE TABLE IF NOT EXISTS usuarios (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario VARCHAR(50) UNIQUE NOT NULL,
+      senha VARCHAR(50) NOT NULL,
+      email VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS agendamentos (
       id INT AUTO_INCREMENT PRIMARY KEY,
       nome VARCHAR(50) NOT NULL,
       data DATE NOT NULL,
       horario VARCHAR(20) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`;
-    
-    db.query(query2, (err) => {
+    )`,
+    `CREATE TABLE IF NOT EXISTS supervisor (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario VARCHAR(50) UNIQUE NOT NULL,
+      senha VARCHAR(50) NOT NULL,
+      email VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS historico_agendamentos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      nome VARCHAR(50) NOT NULL,
+      data DATE NOT NULL,
+      horario VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
+      ('admin', '123', 'admin@teste.com'),
+      ('user1', '123', 'user1@teste.com'),
+      ('petrus', '123', 'petrus@teste.com')`,
+    `INSERT IGNORE INTO supervisor (usuario, senha, email) VALUES 
+      ('supervisor', 'admin123', 'supervisor@teste.com')`
+  ];
+  
+  let completed = 0;
+  
+  queries.forEach((query, index) => {
+    db.query(query, (err) => {
       if (err) {
-        db.end();
-        return res.status(500).json({ success: false, message: 'Erro tabela agendamentos', error: err.message });
+        console.error(`Erro query ${index}:`, err);
       }
+      completed++;
       
-      const query3 = `INSERT IGNORE INTO usuarios (usuario, senha, email) VALUES 
-        ('admin', '123', 'admin@teste.com'),
-        ('user1', '123', 'user1@teste.com')`;
-      
-      db.query(query3, (err) => {
+      if (completed === queries.length) {
         db.end();
-        if (err) {
-          return res.status(500).json({ success: false, message: 'Erro inserir dados', error: err.message });
-        }
-        
-        res.json({ success: true, message: 'Banco configurado!' });
-      });
+        res.json({ success: true, message: 'Banco Railway configurado!' });
+      }
     });
   });
 });
