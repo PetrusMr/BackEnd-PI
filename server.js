@@ -408,14 +408,17 @@ app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
             cicloCompleto: temInicio && temFim
           };
           
+          // temAgendamento deve ser true se pode fazer alguma ação (início ou fim)
+          const podeAlgumaAcao = statusBotoes.podeInicio || statusBotoes.podeFim;
+          
           res.json({ 
-            temAgendamento: true,
-            agendamento: {
+            temAgendamento: podeAlgumaAcao,
+            agendamento: podeAlgumaAcao ? {
               id: results[0].id,
               nome: results[0].nome,
               data: results[0].data,
               horario: results[0].horario
-            },
+            } : null,
             statusBotoes
           });
         });
