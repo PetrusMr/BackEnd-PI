@@ -371,8 +371,8 @@ app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
   const query = 'SELECT * FROM agendamentos WHERE nome = ? AND data = ? AND horario = ?';
   
   db.query(query, [usuario, hoje, horarioAtual], (err, results) => {
-    db.end();
     if (err) {
+      db.end();
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
@@ -388,16 +388,46 @@ app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
         podeEscanear = true;
       }
       
-      res.json({ 
-        temAgendamento: podeEscanear, 
-        agendamento: podeEscanear ? {
-          id: results[0].id,
-          nome: results[0].nome,
-          data: results[0].data,
-          horario: results[0].horario
-        } : null
-      });
+      if (podeEscanear) {
+        // Verificar status dos scans para controlar botões
+        const scanQuery = 'SELECT tipo_scan FROM scans WHERE usuario = ? AND DATE(data_hora) = ? AND turno = ? ORDER BY data_hora';
+        
+        db.query(scanQuery, [usuario, hoje, horarioAtual], (scanErr, scanResults) => {
+          db.end();
+          if (scanErr) {
+            return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+          }
+          
+          const scans = scanResults.map(s => s.tipo_scan);
+          const temInicio = scans.includes('inicio');
+          const temFim = scans.includes('fim');
+          
+          let statusBotoes = {
+            podeInicio: !temInicio && !temFim,
+            podeFim: temInicio && !temFim,
+            cicloCompleto: temInicio && temFim
+          };
+          
+          res.json({ 
+            temAgendamento: true,
+            agendamento: {
+              id: results[0].id,
+              nome: results[0].nome,
+              data: results[0].data,
+              horario: results[0].horario
+            },
+            statusBotoes
+          });
+        });
+      } else {
+        db.end();
+        res.json({ 
+          temAgendamento: false, 
+          agendamento: null 
+        });
+      }
     } else {
+      db.end();
       res.json({ 
         temAgendamento: false, 
         agendamento: null 
@@ -453,10 +483,19 @@ app.post('/api/scans/salvar-scan', (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro ao criar tabela' });
     }
     
+    // Determinar turno se não foi enviado
+    let turnoFinal = turno;
+    if (!turnoFinal) {
+      const hora = new Date().getHours();
+      if (hora >= 7 && hora < 13) turnoFinal = 'manha';
+      else if (hora >= 13 && hora < 18) turnoFinal = 'tarde';
+      else if (hora >= 18 && hora < 23) turnoFinal = 'noite';
+    }
+    
     // Inserir scan
     const insertQuery = 'INSERT INTO scans (usuario, tipo_scan, resultado_scan, turno) VALUES (?, ?, ?, ?)';
     
-    db.query(insertQuery, [usuario, tipo_scan, resultado_scan, turno], (err, result) => {
+    db.query(insertQuery, [usuario, tipo_scan, resultado_scan, turnoFinal], (err, result) => {
       db.end();
       if (err) {
         return res.status(500).json({ success: false, message: 'Erro ao salvar scan' });
