@@ -313,24 +313,50 @@ app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
 app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
   const { usuario } = req.params;
   const db = createConnection();
-  const hoje = new Date().toISOString().split('T')[0];
-  const query = 'SELECT * FROM agendamentos WHERE nome = ? AND data = ?';
+  const agora = new Date();
+  const hoje = agora.toISOString().split('T')[0];
+  const horaAtual = agora.getHours();
+  const minutoAtual = agora.getMinutes();
   
-  db.query(query, [usuario, hoje], (err, results) => {
+  // Determinar horário atual
+  let horarioAtual = '';
+  if (horaAtual >= 7 && horaAtual < 13) {
+    horarioAtual = 'manha';
+  } else if (horaAtual >= 13 && horaAtual < 18) {
+    horarioAtual = 'tarde';
+  } else if (horaAtual >= 18 && horaAtual < 23) {
+    horarioAtual = 'noite';
+  }
+  
+  // Buscar agendamento para o horário atual
+  const query = 'SELECT * FROM agendamentos WHERE nome = ? AND data = ? AND horario = ?';
+  
+  db.query(query, [usuario, hoje, horarioAtual], (err, results) => {
     db.end();
     if (err) {
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
     if (results.length > 0) {
+      // Verificar se está no horário correto para escanear
+      let podeEscanear = false;
+      
+      if (horarioAtual === 'manha' && horaAtual >= 7 && (horaAtual > 7 || minutoAtual >= 1)) {
+        podeEscanear = true;
+      } else if (horarioAtual === 'tarde' && horaAtual >= 13 && (horaAtual > 13 || minutoAtual >= 1)) {
+        podeEscanear = true;
+      } else if (horarioAtual === 'noite' && horaAtual >= 18 && (horaAtual > 18 || minutoAtual >= 1)) {
+        podeEscanear = true;
+      }
+      
       res.json({ 
-        temAgendamento: true, 
-        agendamento: {
+        temAgendamento: podeEscanear, 
+        agendamento: podeEscanear ? {
           id: results[0].id,
           nome: results[0].nome,
           data: results[0].data,
           horario: results[0].horario
-        }
+        } : null
       });
     } else {
       res.json({ 
