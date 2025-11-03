@@ -215,15 +215,54 @@ app.post('/api/agendamentos', (req, res) => {
 app.delete('/api/agendamentos/:id', (req, res) => {
   const { id } = req.params;
   const db = createConnection();
-  const query = 'DELETE FROM agendamentos WHERE id = ?';
   
-  db.query(query, [id], (err, result) => {
-    db.end();
+  // Primeiro buscar o agendamento para verificar se já passou
+  const selectQuery = 'SELECT * FROM agendamentos WHERE id = ?';
+  
+  db.query(selectQuery, [id], (err, results) => {
     if (err) {
+      db.end();
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
-    res.json({ success: true, message: 'Agendamento cancelado com sucesso' });
+    if (results.length === 0) {
+      db.end();
+      return res.status(404).json({ success: false, message: 'Agendamento não encontrado' });
+    }
+    
+    const agendamento = results[0];
+    const agora = new Date();
+    const hoje = agora.toISOString().split('T')[0];
+    const horaAtual = agora.getHours();
+    const dataAgendamento = new Date(agendamento.data).toISOString().split('T')[0];
+    
+    // Verificar se o agendamento já passou
+    let jaPasso = false;
+    
+    if (dataAgendamento < hoje) {
+      jaPasso = true;
+    } else if (dataAgendamento === hoje) {
+      if (agendamento.horario === 'manha' && horaAtual >= 13) jaPasso = true;
+      if (agendamento.horario === 'tarde' && horaAtual >= 18) jaPasso = true;
+      if (agendamento.horario === 'noite' && horaAtual >= 23) jaPasso = true;
+    }
+    
+    if (jaPasso) {
+      db.end();
+      return res.status(400).json({ success: false, message: 'Não é possível cancelar agendamento que já passou' });
+    }
+    
+    // Se não passou, pode cancelar
+    const deleteQuery = 'DELETE FROM agendamentos WHERE id = ?';
+    
+    db.query(deleteQuery, [id], (err, result) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+      }
+      
+      res.json({ success: true, message: 'Agendamento cancelado com sucesso' });
+    });
   });
 });
 
