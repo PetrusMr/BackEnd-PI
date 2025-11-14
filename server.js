@@ -29,6 +29,85 @@ function createConnection() {
   return mysql.createConnection(dbConfig);
 }
 
+// Função para mover agendamentos expirados para histórico automaticamente
+function moverAgendamentosExpirados() {
+  const db = createConnection();
+  const agora = new Date();
+  const hoje = agora.toISOString().split('T')[0];
+  const horaAtual = agora.getHours();
+  
+  console.log(`🕐 Verificando agendamentos expirados - ${hoje} ${horaAtual}:00`);
+  
+  // Criar tabela histórico se não existir
+  const createHistoricoTable = `CREATE TABLE IF NOT EXISTS historico_agendamentos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(50) NOT NULL,
+    data DATE NOT NULL,
+    horario VARCHAR(20) NOT NULL,
+    data_movido TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`;
+  
+  db.query(createHistoricoTable, (err) => {
+    if (err) {
+      console.error('❌ Erro ao criar tabela histórico:', err);
+      db.end();
+      return;
+    }
+    
+    // Buscar agendamentos que já passaram do horário
+    const selectQuery = `SELECT * FROM agendamentos WHERE 
+      data < ? OR 
+      (data = ? AND (
+        (horario = 'manha' AND ? >= 13) OR
+        (horario = 'tarde' AND ? >= 18) OR
+        (horario = 'noite' AND ? >= 23)
+      ))`;
+    
+    db.query(selectQuery, [hoje, hoje, horaAtual, horaAtual, horaAtual], (err, results) => {
+      if (err) {
+        console.error('❌ Erro ao buscar agendamentos expirados:', err);
+        db.end();
+        return;
+      }
+      
+      if (results.length > 0) {
+        console.log(`📊 Encontrados ${results.length} agendamentos para mover:`);
+        results.forEach(r => {
+          console.log(`- ${r.nome} | ${new Date(r.data).toISOString().split('T')[0]} | ${r.horario}`);
+        });
+        
+        // Inserir no histórico
+        const insertQuery = 'INSERT INTO historico_agendamentos (nome, data, horario) VALUES ?';
+        const values = results.map(r => [r.nome, r.data, r.horario]);
+        
+        db.query(insertQuery, [values], (err) => {
+          if (err) {
+            console.error('❌ Erro ao inserir no histórico:', err);
+            db.end();
+            return;
+          }
+          
+          // Remover da tabela principal
+          const ids = results.map(r => r.id);
+          const deleteQuery = `DELETE FROM agendamentos WHERE id IN (${ids.map(() => '?').join(',')})`;
+          
+          db.query(deleteQuery, ids, (err) => {
+            db.end();
+            if (err) {
+              console.error('❌ Erro ao remover agendamentos:', err);
+            } else {
+              console.log(`✅ ${results.length} agendamentos movidos para histórico`);
+            }
+          });
+        });
+      } else {
+        console.log('ℹ️ Nenhum agendamento expirado encontrado');
+        db.end();
+      }
+    });
+  });
+}
+
 
 
 // Rota raiz
@@ -573,11 +652,20 @@ app.get('/api/setup', (req, res) => {
 
 
 
+// Executar limpeza automática a cada hora
+setInterval(() => {
+  moverAgendamentosExpirados();
+}, 60 * 60 * 1000); // 1 hora
+
+// Executar limpeza inicial ao iniciar o servidor
+moverAgendamentosExpirados();
+
 // Para desenvolvimento local
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
     console.log(`📊 Usando MySQL como banco de dados`);
+    console.log(`⏰ Limpeza automática de agendamentos ativada`);
   });
 }
 
@@ -962,24 +1050,71 @@ app.get('/api/teste-analise', (req, res) => {
   });
 });
 
-// Exemplo de como o frontend deve usar o resultado_scan
-app.get('/api/exemplo-uso-scan', (req, res) => {
-  res.json({
-    success: true,
-    instrucoes: {
-      passo1: 'Usuário tira foto e chama POST /api/gemini/analisar-componentes',
-      passo2: 'Sistema retorna analise.componentes_identificados (para exibir detalhado)',
-      passo3: 'Sistema retorna resultado_scan (para mostrar o que será salvo)',
-      passo4: 'Frontend exibe: "Análise concluída com sucesso"',
-      passo5: 'Frontend exibe: resultado_scan (o que vai ser salvo)',
-      passo6: 'Frontend pergunta: "Deseja salvar?"',
-      passo7: 'Se sim, chama POST /api/scans/salvar-scan com resultado_scan'
-    },
-    exemplo_fluxo: {
-      analise_detalhada: '2x Resistor 220Ω (Vermelho-Vermelho-Marrom)\n1x LED 5mm (Vermelho)',
-      resultado_scan: '2x Resistor 220Ω, 1x LED 5mm - Total: 3 componentes (92%)',
-      salvar_no_banco: 'resultado_scan vai para campo resultado_scan da tabela scans'
+// Verificar se agendamento de hoje será movido para histórico
+app.get('/api/verificar-historico-hoje', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  const horaAtual = new Date().getHours();
+  
+  // Verificar agendamentos de hoje
+  const queryAgendamentos = 'SELECT * FROM agendamentos WHERE data = ?';
+  
+  db.query(queryAgendamentos, [hoje], (err, agendamentos) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao buscar agendamentos' });
     }
+    
+    // Verificar histórico de hoje
+    const queryHistorico = 'SELECT * FROM historico_agendamentos WHERE data = ?';
+    
+    db.query(queryHistorico, [hoje], (err, historico) => {
+      if (err) {
+        db.end();
+        return res.status(500).json({ success: false, message: 'Erro ao buscar histórico' });
+      }
+      
+      // Verificar scans de hoje
+      const queryScans = 'SELECT * FROM scans WHERE DATE(data_hora) = ?';
+      
+      db.query(queryScans, [hoje], (err, scans) => {
+        db.end();
+        if (err) {
+          return res.status(500).json({ success: false, message: 'Erro ao buscar scans' });
+        }
+        
+        // Determinar quando será movido
+        let quando_sera_movido = '';
+        const agendamentoTarde = agendamentos.find(a => a.horario === 'tarde');
+        
+        if (agendamentoTarde) {
+          if (horaAtual >= 18) {
+            quando_sera_movido = 'JÁ DEVERIA estar no histórico (após 18h)';
+          } else {
+            quando_sera_movido = `Será movido às 18:00 (faltam ${18 - horaAtual}h)`;
+          }
+        }
+        
+        res.json({
+          success: true,
+          data_hoje: hoje,
+          hora_atual: horaAtual,
+          agendamentos_hoje: agendamentos.map(a => ({
+            ...a,
+            data: new Date(a.data).toISOString().split('T')[0]
+          })),
+          historico_hoje: historico.map(h => ({
+            ...h,
+            data: new Date(h.data).toISOString().split('T')[0]
+          })),
+          scans_hoje: scans,
+          previsao: {
+            quando_sera_movido,
+            aparecera_no_historico: quando_sera_movido.includes('JÁ DEVERIA') ? 'SIM' : 'AINDA NÃO'
+          }
+        });
+      });
+    });
   });
 });
 
