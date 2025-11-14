@@ -683,5 +683,125 @@ app.get('/api/teste-scan-limpo', (req, res) => {
   });
 });
 
+// DIAGNÓSTICO COMPLETO - Por que só o FIM está habilitado?
+app.get('/api/diagnostico-scan-user1', (req, res) => {
+  const db = createConnection();
+  const agora = new Date();
+  const hoje = agora.toISOString().split('T')[0];
+  const horaAtual = agora.getHours();
+  const minutoAtual = agora.getMinutes();
+  
+  // Determinar período atual
+  let periodoAtual = '';
+  let podeEscanear = false;
+  
+  if (horaAtual >= 7 && horaAtual < 13) {
+    periodoAtual = 'manha';
+    podeEscanear = true;
+  } else if (horaAtual >= 13 && horaAtual < 18) {
+    periodoAtual = 'tarde';
+    podeEscanear = true;
+  } else if (horaAtual >= 18 && horaAtual < 23) {
+    periodoAtual = 'noite';
+    podeEscanear = true;
+  } else {
+    periodoAtual = 'fora_horario';
+    podeEscanear = false;
+  }
+  
+  // Verificar agendamento ativo
+  const queryAgendamento = 'SELECT * FROM agendamentos WHERE nome = "user1" AND data = ? AND horario = ?';
+  
+  db.query(queryAgendamento, [hoje, periodoAtual], (err, agendamentos) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao buscar agendamento' });
+    }
+    
+    const temAgendamento = agendamentos.length > 0;
+    
+    // Verificar scans do user1 hoje
+    const queryScans = 'SELECT * FROM scans WHERE usuario = "user1" AND DATE(data_hora) = ? ORDER BY data_hora';
+    
+    db.query(queryScans, [hoje], (err, scans) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao buscar scans' });
+      }
+      
+      const temScanInicio = scans.some(s => s.tipo_scan === 'inicio');
+      const temScanFim = scans.some(s => s.tipo_scan === 'fim');
+      
+      // Lógica do que deveria estar habilitado
+      let deveHabilitarInicio = false;
+      let deveHabilitarFim = false;
+      
+      if (temAgendamento && podeEscanear) {
+        if (!temScanInicio) {
+          deveHabilitarInicio = true;
+          deveHabilitarFim = false;
+        } else if (temScanInicio && !temScanFim) {
+          deveHabilitarInicio = false;
+          deveHabilitarFim = true;
+        } else {
+          deveHabilitarInicio = false;
+          deveHabilitarFim = false;
+        }
+      }
+      
+      res.json({
+        success: true,
+        diagnostico: {
+          data_hora: `${hoje} ${horaAtual}:${minutoAtual.toString().padStart(2, '0')}`,
+          periodo_atual: periodoAtual,
+          pode_escanear_horario: podeEscanear,
+          tem_agendamento: temAgendamento,
+          agendamento: temAgendamento ? agendamentos[0] : null,
+          scans_hoje: {
+            total: scans.length,
+            tem_inicio: temScanInicio,
+            tem_fim: temScanFim,
+            lista: scans
+          },
+          botoes_devem_estar: {
+            inicio_habilitado: deveHabilitarInicio,
+            fim_habilitado: deveHabilitarFim
+          },
+          problema_identificado: {
+            sem_agendamento: !temAgendamento,
+            fora_horario: !podeEscanear,
+            scan_inicio_fantasma: temScanInicio && scans.length > 0,
+            ja_completou_ciclo: temScanInicio && temScanFim
+          }
+        }
+      });
+    });
+  });
+});
+
+// Forçar reset completo do user1 (agendamento + scans)
+app.post('/api/reset-completo-user1', (req, res) => {
+  const db = createConnection();
+  
+  // Primeiro apagar todos os scans
+  const deleteScanQuery = 'DELETE FROM scans WHERE usuario = "user1"';
+  
+  db.query(deleteScanQuery, (err, scanResult) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao apagar scans' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Reset completo do user1 realizado!',
+      scans_removidos: scanResult.affectedRows,
+      status: 'Agora o scan de INÍCIO deve estar habilitado'
+    });
+    
+    db.end();
+  });
+});
+
 // Para Vercel
 module.exports = app;
