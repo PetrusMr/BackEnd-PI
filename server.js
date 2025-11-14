@@ -392,6 +392,11 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
   
   const analise = analises[Math.floor(Math.random() * analises.length)];
   
+  // Formatar o que será salvo no banco
+  const resultado_para_banco = analise.componentes.map(comp => 
+    `${comp.quantidade}x ${comp.nome} ${comp.valor}`
+  ).join(', ') + ` - Total: ${analise.total_componentes} componentes (${analise.confianca})`;
+  
   // Formatar resultado para exibição
   const resultado_formatado = {
     success: true,
@@ -406,7 +411,9 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
         `${comp.quantidade}x ${comp.nome} ${comp.valor} (${comp.cor})`
       ).join('\n'),
       timestamp: new Date().toISOString()
-    }
+    },
+    // O que será salvo no banco de dados
+    resultado_scan: resultado_para_banco
   };
   
   res.json(resultado_formatado);
@@ -935,15 +942,43 @@ app.post('/api/corrigir-scan-fantasma-user1', (req, res) => {
 
 // Teste da análise de componentes
 app.get('/api/teste-analise', (req, res) => {
+  const exemplo_componentes = [
+    { nome: 'Resistor', valor: '220Ω', quantidade: 2, cor: 'Vermelho-Vermelho-Marrom' },
+    { nome: 'LED', valor: '5mm', quantidade: 1, cor: 'Vermelho' }
+  ];
+  
+  const resultado_banco = exemplo_componentes.map(comp => 
+    `${comp.quantidade}x ${comp.nome} ${comp.valor}`
+  ).join(', ') + ' - Total: 3 componentes (92%)';
+  
   res.json({
     success: true,
     message: 'Teste da análise de componentes',
     exemplo: {
-      componentes: [
-        { nome: 'Resistor', valor: '220Ω', quantidade: 2, cor: 'Vermelho-Vermelho-Marrom' },
-        { nome: 'LED', valor: '5mm', quantidade: 1, cor: 'Vermelho' }
-      ],
+      componentes: exemplo_componentes,
       total: 3
+    },
+    resultado_scan: resultado_banco
+  });
+});
+
+// Exemplo de como o frontend deve usar o resultado_scan
+app.get('/api/exemplo-uso-scan', (req, res) => {
+  res.json({
+    success: true,
+    instrucoes: {
+      passo1: 'Usuário tira foto e chama POST /api/gemini/analisar-componentes',
+      passo2: 'Sistema retorna analise.componentes_identificados (para exibir detalhado)',
+      passo3: 'Sistema retorna resultado_scan (para mostrar o que será salvo)',
+      passo4: 'Frontend exibe: "Análise concluída com sucesso"',
+      passo5: 'Frontend exibe: resultado_scan (o que vai ser salvo)',
+      passo6: 'Frontend pergunta: "Deseja salvar?"',
+      passo7: 'Se sim, chama POST /api/scans/salvar-scan com resultado_scan'
+    },
+    exemplo_fluxo: {
+      analise_detalhada: '2x Resistor 220Ω (Vermelho-Vermelho-Marrom)\n1x LED 5mm (Vermelho)',
+      resultado_scan: '2x Resistor 220Ω, 1x LED 5mm - Total: 3 componentes (92%)',
+      salvar_no_banco: 'resultado_scan vai para campo resultado_scan da tabela scans'
     }
   });
 });
