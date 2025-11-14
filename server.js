@@ -617,5 +617,71 @@ app.delete('/api/limpar-scans-user1-hoje', (req, res) => {
   });
 });
 
+// Apagar TODOS os scans fantasmas do user1
+app.post('/api/apagar-scans-fantasmas-user1', (req, res) => {
+  const db = createConnection();
+  
+  // Primeiro verificar quantos scans existem
+  const countQuery = 'SELECT COUNT(*) as total FROM scans WHERE usuario = "user1"';
+  
+  db.query(countQuery, (err, countResult) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao contar scans' });
+    }
+    
+    const totalScans = countResult[0].total;
+    
+    if (totalScans === 0) {
+      db.end();
+      return res.json({
+        success: true,
+        message: 'Nenhum scan encontrado para user1',
+        removidos: 0
+      });
+    }
+    
+    // Apagar todos os scans do user1
+    const deleteQuery = 'DELETE FROM scans WHERE usuario = "user1"';
+    
+    db.query(deleteQuery, (err, result) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao apagar scans' });
+      }
+      
+      res.json({
+        success: true,
+        message: `TODOS os ${result.affectedRows} scans fantasmas do user1 foram apagados!`,
+        removidos: result.affectedRows,
+        total_antes: totalScans
+      });
+    });
+  });
+});
+
+// Rota simples para testar se funcionou
+app.get('/api/teste-scan-limpo', (req, res) => {
+  const db = createConnection();
+  
+  const query = 'SELECT COUNT(*) as total FROM scans WHERE usuario = "user1"';
+  
+  db.query(query, (err, result) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao verificar' });
+    }
+    
+    const total = result[0].total;
+    
+    res.json({
+      success: true,
+      scans_user1: total,
+      status: total === 0 ? 'LIMPO ✅' : `AINDA TEM ${total} SCANS ❌`,
+      message: total === 0 ? 'Scans fantasmas removidos com sucesso!' : 'Ainda existem scans do user1'
+    });
+  });
+});
+
 // Para Vercel
 module.exports = app;
