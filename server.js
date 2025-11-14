@@ -348,19 +348,68 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
-  const resultados = [
-    'Componente identificado: Resistor 220Ω',
-    'Componente identificado: LED vermelho',
-    'Componente identificado: Capacitor 100μF',
-    'Análise concluída com sucesso'
+  // Simulação de análise de componentes com diferentes cenários
+  const analises = [
+    {
+      componentes: [
+        { nome: 'Resistor', valor: '220Ω', quantidade: 2, cor: 'Vermelho-Vermelho-Marrom' },
+        { nome: 'LED', valor: '5mm', quantidade: 1, cor: 'Vermelho' },
+        { nome: 'Capacitor', valor: '100μF', quantidade: 1, cor: 'Azul' }
+      ],
+      total_componentes: 4,
+      confianca: '92%'
+    },
+    {
+      componentes: [
+        { nome: 'Resistor', valor: '1kΩ', quantidade: 3, cor: 'Marrom-Preto-Vermelho' },
+        { nome: 'Transistor', valor: 'BC547', quantidade: 1, cor: 'Preto' },
+        { nome: 'Capacitor', valor: '22pF', quantidade: 2, cor: 'Cerâmico' }
+      ],
+      total_componentes: 6,
+      confianca: '87%'
+    },
+    {
+      componentes: [
+        { nome: 'Resistor', valor: '470Ω', quantidade: 1, cor: 'Amarelo-Violeta-Marrom' },
+        { nome: 'LED', valor: '3mm', quantidade: 2, cor: 'Verde' },
+        { nome: 'Diodo', valor: '1N4007', quantidade: 1, cor: 'Preto' },
+        { nome: 'Capacitor', valor: '10μF', quantidade: 1, cor: 'Eletrolítico' }
+      ],
+      total_componentes: 5,
+      confianca: '95%'
+    },
+    {
+      componentes: [
+        { nome: 'Resistor', valor: '10kΩ', quantidade: 2, cor: 'Marrom-Preto-Laranja' },
+        { nome: 'CI', valor: '555', quantidade: 1, cor: 'Preto' },
+        { nome: 'Capacitor', valor: '1000μF', quantidade: 1, cor: 'Eletrolítico' },
+        { nome: 'LED', valor: '5mm', quantidade: 3, cor: 'Azul' }
+      ],
+      total_componentes: 7,
+      confianca: '89%'
+    }
   ];
   
-  const resultado = resultados[Math.floor(Math.random() * resultados.length)];
+  const analise = analises[Math.floor(Math.random() * analises.length)];
   
-  res.json({ 
-    success: true, 
-    resultado: resultado
-  });
+  // Formatar resultado para exibição
+  const resultado_formatado = {
+    success: true,
+    analise: {
+      componentes_identificados: analise.componentes,
+      resumo: {
+        total_componentes: analise.total_componentes,
+        tipos_diferentes: analise.componentes.length,
+        confianca_analise: analise.confianca
+      },
+      detalhes: analise.componentes.map(comp => 
+        `${comp.quantidade}x ${comp.nome} ${comp.valor} (${comp.cor})`
+      ).join('\n'),
+      timestamp: new Date().toISOString()
+    }
+  };
+  
+  res.json(resultado_formatado);
 });
 
 app.post('/api/scans/salvar-scan', (req, res) => {
@@ -881,6 +930,21 @@ app.post('/api/corrigir-scan-fantasma-user1', (req, res) => {
       removidos: result.affectedRows,
       status: 'Agora só o botão INÍCIO deve estar habilitado'
     });
+  });
+});
+
+// Teste da análise de componentes
+app.get('/api/teste-analise', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Teste da análise de componentes',
+    exemplo: {
+      componentes: [
+        { nome: 'Resistor', valor: '220Ω', quantidade: 2, cor: 'Vermelho-Vermelho-Marrom' },
+        { nome: 'LED', valor: '5mm', quantidade: 1, cor: 'Vermelho' }
+      ],
+      total: 3
+    }
   });
 });
 
