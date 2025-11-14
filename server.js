@@ -525,5 +525,97 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
+// Debug - verificar scans do user1 hoje
+app.get('/api/debug-scans-user1-hoje', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  // Verificar se tabela scans existe
+  const checkTableQuery = 'SHOW TABLES LIKE "scans"';
+  
+  db.query(checkTableQuery, (err, tableResults) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao verificar tabela' });
+    }
+    
+    if (tableResults.length === 0) {
+      db.end();
+      return res.json({
+        success: true,
+        tabela_existe: false,
+        message: 'Tabela scans não existe - por isso não há scans'
+      });
+    }
+    
+    // Buscar scans do user1 para hoje
+    const queryScans = 'SELECT * FROM scans WHERE usuario = "user1" AND DATE(data_hora) = ? ORDER BY data_hora';
+    
+    db.query(queryScans, [hoje], (err, scans) => {
+      if (err) {
+        db.end();
+        return res.status(500).json({ success: false, message: 'Erro ao buscar scans' });
+      }
+      
+      // Verificar agendamento ativo do user1 hoje
+      const queryAgendamento = 'SELECT * FROM agendamentos WHERE nome = "user1" AND data = ?';
+      
+      db.query(queryAgendamento, [hoje], (err, agendamentos) => {
+        db.end();
+        if (err) {
+          return res.status(500).json({ success: false, message: 'Erro ao buscar agendamentos' });
+        }
+        
+        const horaAtual = new Date().getHours();
+        let periodoAtual = '';
+        if (horaAtual >= 7 && horaAtual < 13) {
+          periodoAtual = 'manha';
+        } else if (horaAtual >= 13 && horaAtual < 18) {
+          periodoAtual = 'tarde';
+        } else if (horaAtual >= 18 && horaAtual < 23) {
+          periodoAtual = 'noite';
+        }
+        
+        res.json({
+          success: true,
+          tabela_existe: true,
+          data_hoje: hoje,
+          hora_atual: horaAtual,
+          periodo_atual: periodoAtual,
+          agendamentos_user1: agendamentos.map(a => ({
+            ...a,
+            data: new Date(a.data).toISOString().split('T')[0]
+          })),
+          scans_user1: scans,
+          total_scans: scans.length,
+          tem_scan_inicio: scans.some(s => s.tipo_scan === 'inicio'),
+          tem_scan_fim: scans.some(s => s.tipo_scan === 'fim')
+        });
+      });
+    });
+  });
+});
+
+// Limpar scans incorretos do user1 hoje
+app.delete('/api/limpar-scans-user1-hoje', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  const query = 'DELETE FROM scans WHERE usuario = "user1" AND DATE(data_hora) = ?';
+  
+  db.query(query, [hoje], (err, result) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao limpar scans' });
+    }
+    
+    res.json({
+      success: true,
+      message: `${result.affectedRows} scans removidos para user1 em ${hoje}`,
+      removidos: result.affectedRows
+    });
+  });
+});
+
 // Para Vercel
 module.exports = app;
