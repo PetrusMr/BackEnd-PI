@@ -779,6 +779,64 @@ app.get('/api/diagnostico-scan-user1', (req, res) => {
   });
 });
 
+// Verificar especificamente a lógica INÍCIO/FIM
+app.get('/api/verificar-logica-scan-user1', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  // Buscar scans do user1 hoje
+  const queryScans = 'SELECT * FROM scans WHERE usuario = "user1" AND DATE(data_hora) = ? ORDER BY data_hora';
+  
+  db.query(queryScans, [hoje], (err, scans) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao buscar scans' });
+    }
+    
+    const scanInicio = scans.find(s => s.tipo_scan === 'inicio');
+    const scanFim = scans.find(s => s.tipo_scan === 'fim');
+    
+    // Lógica correta:
+    // - Se NÃO tem scan início: só INÍCIO deve estar habilitado
+    // - Se tem scan início mas NÃO tem fim: só FIM deve estar habilitado
+    // - Se tem ambos: nenhum deve estar habilitado
+    
+    let statusCorreto = '';
+    let problemaIdentificado = '';
+    
+    if (!scanInicio && !scanFim) {
+      statusCorreto = 'Só INÍCIO deve estar habilitado';
+      problemaIdentificado = 'Se só FIM está habilitado, há scan INÍCIO fantasma!';
+    } else if (scanInicio && !scanFim) {
+      statusCorreto = 'Só FIM deve estar habilitado';
+      problemaIdentificado = 'Situação normal - você fez início, agora pode fazer fim';
+    } else if (scanInicio && scanFim) {
+      statusCorreto = 'Nenhum botão deve estar habilitado';
+      problemaIdentificado = 'Ciclo completo - você já fez início e fim';
+    }
+    
+    res.json({
+      success: true,
+      situacao_atual: {
+        data: hoje,
+        total_scans: scans.length,
+        tem_scan_inicio: !!scanInicio,
+        tem_scan_fim: !!scanFim,
+        scan_inicio: scanInicio || null,
+        scan_fim: scanFim || null
+      },
+      logica_correta: {
+        status: statusCorreto,
+        problema: problemaIdentificado
+      },
+      todos_scans: scans,
+      acao_recomendada: !scanInicio && !scanFim ? 
+        'Se só FIM está habilitado, execute: POST /api/reset-completo-user1' : 
+        'Situação parece normal'
+    });
+  });
+});
+
 // Forçar reset completo do user1 (agendamento + scans)
 app.post('/api/reset-completo-user1', (req, res) => {
   const db = createConnection();
@@ -796,10 +854,33 @@ app.post('/api/reset-completo-user1', (req, res) => {
       success: true,
       message: 'Reset completo do user1 realizado!',
       scans_removidos: scanResult.affectedRows,
-      status: 'Agora o scan de INÍCIO deve estar habilitado'
+      status: 'Agora APENAS o scan de INÍCIO deve estar habilitado'
     });
     
     db.end();
+  });
+});
+
+// CORREÇÃO IMEDIATA - Apagar scan início fantasma
+app.post('/api/corrigir-scan-fantasma-user1', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  // Apagar especificamente scans de início de hoje
+  const deleteQuery = 'DELETE FROM scans WHERE usuario = "user1" AND DATE(data_hora) = ? AND tipo_scan = "inicio"';
+  
+  db.query(deleteQuery, [hoje], (err, result) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao corrigir' });
+    }
+    
+    res.json({
+      success: true,
+      message: `${result.affectedRows} scans de INÍCIO fantasmas removidos!`,
+      removidos: result.affectedRows,
+      status: 'Agora só o botão INÍCIO deve estar habilitado'
+    });
   });
 });
 
