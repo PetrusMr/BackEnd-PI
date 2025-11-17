@@ -1443,5 +1443,68 @@ app.get('/api/corrigir-historico-data', (req, res) => {
   });
 });
 
+// Mover reserva da tarde de volta para agendamentos ativos
+app.post('/api/mover-tarde-volta', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  const horaAtual = new Date().getHours();
+  const minutoAtual = new Date().getMinutes();
+  
+  // Verificar se ainda está no horário da tarde (antes das 17:45)
+  const dentroHorarioTarde = horaAtual < 17 || (horaAtual === 17 && minutoAtual < 45);
+  
+  if (!dentroHorarioTarde) {
+    db.end();
+    return res.json({ success: false, message: 'Já passou do horário da tarde (17:45)' });
+  }
+  
+  // Buscar reserva da tarde no histórico
+  const queryBuscar = 'SELECT * FROM historico_agendamentos WHERE data = ? AND horario = "tarde"';
+  
+  db.query(queryBuscar, [hoje], (err, reservas) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao buscar reserva' });
+    }
+    
+    if (reservas.length === 0) {
+      db.end();
+      return res.json({ success: false, message: 'Nenhuma reserva da tarde encontrada no histórico' });
+    }
+    
+    const reserva = reservas[0];
+    
+    // Inserir de volta em agendamentos
+    const queryInserir = 'INSERT INTO agendamentos (nome, data, horario) VALUES (?, ?, ?)';
+    
+    db.query(queryInserir, [reserva.nome, reserva.data, reserva.horario], (err) => {
+      if (err) {
+        db.end();
+        return res.status(500).json({ success: false, message: 'Erro ao inserir reserva' });
+      }
+      
+      // Remover do histórico
+      const queryRemover = 'DELETE FROM historico_agendamentos WHERE id = ?';
+      
+      db.query(queryRemover, [reserva.id], (err) => {
+        db.end();
+        if (err) {
+          return res.status(500).json({ success: false, message: 'Erro ao remover do histórico' });
+        }
+        
+        res.json({
+          success: true,
+          message: 'Reserva da tarde movida de volta para Ver Reservas',
+          reserva: {
+            nome: reserva.nome,
+            data: hoje,
+            horario: 'tarde'
+          }
+        });
+      });
+    });
+  });
+});
+
 // Para Vercel
 module.exports = app;
