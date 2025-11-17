@@ -295,15 +295,54 @@ app.post('/api/agendamentos', (req, res) => {
 app.delete('/api/agendamentos/:id', (req, res) => {
   const { id } = req.params;
   const db = createConnection();
-  const query = 'DELETE FROM agendamentos WHERE id = ?';
   
-  db.query(query, [id], (err, result) => {
-    db.end();
+  // Primeiro buscar o agendamento para verificar se já passou
+  const selectQuery = 'SELECT * FROM agendamentos WHERE id = ?';
+  
+  db.query(selectQuery, [id], (err, results) => {
     if (err) {
+      db.end();
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
-    res.json({ success: true, message: 'Agendamento cancelado com sucesso' });
+    if (results.length === 0) {
+      db.end();
+      return res.status(404).json({ success: false, message: 'Agendamento não encontrado' });
+    }
+    
+    const agendamento = results[0];
+    const agora = new Date();
+    const hoje = agora.toISOString().split('T')[0];
+    const horaAtual = agora.getHours();
+    const dataAgendamento = new Date(agendamento.data).toISOString().split('T')[0];
+    
+    // Verificar se o agendamento já passou
+    let jaPasso = false;
+    
+    if (dataAgendamento < hoje) {
+      jaPasso = true;
+    } else if (dataAgendamento === hoje) {
+      if (agendamento.horario === 'manha' && horaAtual >= 13) jaPasso = true;
+      if (agendamento.horario === 'tarde' && horaAtual >= 18) jaPasso = true;
+      if (agendamento.horario === 'noite' && horaAtual >= 23) jaPasso = true;
+    }
+    
+    if (jaPasso) {
+      db.end();
+      return res.status(400).json({ success: false, message: 'Não é possível cancelar agendamento que já passou' });
+    }
+    
+    // Se não passou, pode cancelar
+    const deleteQuery = 'DELETE FROM agendamentos WHERE id = ?';
+    
+    db.query(deleteQuery, [id], (err, result) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+      }
+      
+      res.json({ success: true, message: 'Agendamento cancelado com sucesso' });
+    });
   });
 });
 
@@ -393,26 +432,85 @@ app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
 app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
   const { usuario } = req.params;
   const db = createConnection();
-  const hoje = new Date().toISOString().split('T')[0];
-  const query = 'SELECT * FROM agendamentos WHERE nome = ? AND data = ?';
+  const agora = new Date();
+  const hoje = agora.toISOString().split('T')[0];
+  const horaAtual = agora.getHours();
+  const minutoAtual = agora.getMinutes();
   
-  db.query(query, [usuario, hoje], (err, results) => {
-    db.end();
+  // Determinar horário atual
+  let horarioAtual = '';
+  if (horaAtual >= 7 && horaAtual < 13) {
+    horarioAtual = 'manha';
+  } else if (horaAtual >= 13 && horaAtual < 18) {
+    horarioAtual = 'tarde';
+  } else if (horaAtual >= 18 && horaAtual < 23) {
+    horarioAtual = 'noite';
+  }
+  
+  // Buscar agendamento para o horário atual
+  const query = 'SELECT * FROM agendamentos WHERE nome = ? AND data = ? AND horario = ?';
+  
+  db.query(query, [usuario, hoje, horarioAtual], (err, results) => {
     if (err) {
+      db.end();
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
     
     if (results.length > 0) {
-      res.json({ 
-        temAgendamento: true, 
-        agendamento: {
-          id: results[0].id,
-          nome: results[0].nome,
-          data: results[0].data,
-          horario: results[0].horario
-        }
-      });
+      // Verificar se está no horário correto para escanear
+      let podeEscanear = false;
+      
+      if (horarioAtual === 'manha' && horaAtual >= 7 && (horaAtual > 7 || minutoAtual >= 1)) {
+        podeEscanear = true;
+      } else if (horarioAtual === 'tarde' && horaAtual >= 13 && (horaAtual > 13 || minutoAtual >= 1)) {
+        podeEscanear = true;
+      } else if (horarioAtual === 'noite' && horaAtual >= 18 && (horaAtual > 18 || minutoAtual >= 1)) {
+        podeEscanear = true;
+      }
+      
+      if (podeEscanear) {
+        // Verificar status dos scans para controlar botões
+        const scanQuery = 'SELECT tipo_scan FROM scans WHERE usuario = ? AND DATE(data_hora) = ? AND turno = ? ORDER BY data_hora';
+        
+        db.query(scanQuery, [usuario, hoje, horarioAtual], (scanErr, scanResults) => {
+          db.end();
+          if (scanErr) {
+            return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+          }
+          
+          const scans = scanResults.map(s => s.tipo_scan);
+          const temInicio = scans.includes('inicio');
+          const temFim = scans.includes('fim');
+          
+          let statusBotoes = {
+            podeInicio: !temInicio && !temFim,
+            podeFim: temInicio && !temFim,
+            cicloCompleto: temInicio && temFim
+          };
+          
+          // temAgendamento deve ser true se pode fazer alguma ação (início ou fim)
+          const podeAlgumaAcao = statusBotoes.podeInicio || statusBotoes.podeFim;
+          
+          res.json({ 
+            temAgendamento: podeAlgumaAcao,
+            agendamento: podeAlgumaAcao ? {
+              id: results[0].id,
+              nome: results[0].nome,
+              data: results[0].data,
+              horario: results[0].horario
+            } : null,
+            statusBotoes
+          });
+        });
+      } else {
+        db.end();
+        res.json({ 
+          temAgendamento: false, 
+          agendamento: null 
+        });
+      }
     } else {
+      db.end();
       res.json({ 
         temAgendamento: false, 
         agendamento: null 
@@ -524,10 +622,19 @@ app.post('/api/scans/salvar-scan', (req, res) => {
       return res.status(500).json({ success: false, message: 'Erro ao criar tabela' });
     }
     
+    // Determinar turno se não foi enviado
+    let turnoFinal = turno;
+    if (!turnoFinal) {
+      const hora = new Date().getHours();
+      if (hora >= 7 && hora < 13) turnoFinal = 'manha';
+      else if (hora >= 13 && hora < 18) turnoFinal = 'tarde';
+      else if (hora >= 18 && hora < 23) turnoFinal = 'noite';
+    }
+    
     // Inserir scan
     const insertQuery = 'INSERT INTO scans (usuario, tipo_scan, resultado_scan, turno) VALUES (?, ?, ?, ?)';
     
-    db.query(insertQuery, [usuario, tipo_scan, resultado_scan, turno], (err, result) => {
+    db.query(insertQuery, [usuario, tipo_scan, resultado_scan, turnoFinal], (err, result) => {
       db.end();
       if (err) {
         return res.status(500).json({ success: false, message: 'Erro ao salvar scan' });
