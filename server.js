@@ -57,6 +57,7 @@ function moverAgendamentosExpirados() {
     // Buscar agendamentos que já passaram do horário
     const selectQuery = `SELECT * FROM agendamentos WHERE 
       data < ? OR 
+      
       (data = ? AND (
         (horario = 'manha' AND ? >= 13) OR
         (horario = 'tarde' AND ? >= 18) OR
@@ -1113,6 +1114,137 @@ app.get('/api/verificar-historico-hoje', (req, res) => {
             aparecera_no_historico: quando_sera_movido.includes('JÁ DEVERIA') ? 'SIM' : 'AINDA NÃO'
           }
         });
+      });
+    });
+  });
+});
+
+// Verificar reservas da semana passada
+app.get('/api/reservas/semana-passada', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date();
+  const inicioSemanaPassada = new Date(hoje);
+  inicioSemanaPassada.setDate(hoje.getDate() - hoje.getDay() - 7); // Domingo da semana passada
+  const fimSemanaPassada = new Date(inicioSemanaPassada);
+  fimSemanaPassada.setDate(inicioSemanaPassada.getDate() + 6); // Sábado da semana passada
+  
+  const dataInicio = inicioSemanaPassada.toISOString().split('T')[0];
+  const dataFim = fimSemanaPassada.toISOString().split('T')[0];
+  
+  // Buscar em agendamentos ativos
+  const queryAgendamentos = 'SELECT nome, data, horario, "ativo" as origem FROM agendamentos WHERE data BETWEEN ? AND ?';
+  
+  db.query(queryAgendamentos, [dataInicio, dataFim], (err, agendamentos) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao buscar agendamentos' });
+    }
+    
+    // Buscar no histórico
+    const queryHistorico = 'SELECT nome, data, horario, "historico" as origem FROM historico_agendamentos WHERE data BETWEEN ? AND ?';
+    
+    db.query(queryHistorico, [dataInicio, dataFim], (err, historico) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao buscar histórico' });
+      }
+      
+      // Combinar resultados
+      const todasReservas = [...agendamentos, ...historico].map(reserva => ({
+        ...reserva,
+        data: new Date(reserva.data).toISOString().split('T')[0]
+      })).sort((a, b) => new Date(a.data) - new Date(b.data));
+      
+      res.json({
+        success: true,
+        periodo: {
+          inicio: dataInicio,
+          fim: dataFim,
+          descricao: 'Semana passada'
+        },
+        reservas: todasReservas,
+        total: todasReservas.length,
+        resumo: {
+          por_dia: todasReservas.reduce((acc, r) => {
+            acc[r.data] = (acc[r.data] || 0) + 1;
+            return acc;
+          }, {}),
+          por_horario: todasReservas.reduce((acc, r) => {
+            acc[r.horario] = (acc[r.horario] || 0) + 1;
+            return acc;
+          }, {})
+        }
+      });
+    });
+  });
+});
+
+// Verificar reservas de uma semana específica (10/11 a 16/11)
+app.get('/api/verificar-semana-10-11', (req, res) => {
+  const db = createConnection();
+  const dataInicio = '2024-11-10';
+  const dataFim = '2024-11-16';
+  
+  // Buscar em agendamentos ativos
+  const queryAgendamentos = 'SELECT nome, data, horario, "ativo" as origem FROM agendamentos WHERE data BETWEEN ? AND ?';
+  
+  db.query(queryAgendamentos, [dataInicio, dataFim], (err, agendamentos) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao buscar agendamentos' });
+    }
+    
+    // Buscar no histórico
+    const queryHistorico = 'SELECT nome, data, horario, "historico" as origem FROM historico_agendamentos WHERE data BETWEEN ? AND ?';
+    
+    db.query(queryHistorico, [dataInicio, dataFim], (err, historico) => {
+      db.end();
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao buscar histórico' });
+      }
+      
+      // Combinar e organizar resultados
+      const todasReservas = [...agendamentos, ...historico].map(reserva => ({
+        ...reserva,
+        data: new Date(reserva.data).toISOString().split('T')[0]
+      })).sort((a, b) => new Date(a.data) - new Date(b.data));
+      
+      // Verificar especificamente 14/11 à noite
+      const reserva14NoiteAtivos = agendamentos.filter(r => 
+        new Date(r.data).toISOString().split('T')[0] === '2024-11-14' && r.horario === 'noite'
+      );
+      
+      const reserva14NoiteHistorico = historico.filter(r => 
+        new Date(r.data).toISOString().split('T')[0] === '2024-11-14' && r.horario === 'noite'
+      );
+      
+      res.json({
+        success: true,
+        periodo: {
+          inicio: dataInicio,
+          fim: dataFim,
+          descricao: 'Semana de 10/11 a 16/11/2024'
+        },
+        todas_reservas: todasReservas,
+        total_reservas: todasReservas.length,
+        investigacao_14_11_noite: {
+          encontrada_em_ativos: reserva14NoiteAtivos.length > 0,
+          encontrada_em_historico: reserva14NoiteHistorico.length > 0,
+          detalhes_ativos: reserva14NoiteAtivos,
+          detalhes_historico: reserva14NoiteHistorico,
+          status: reserva14NoiteAtivos.length > 0 ? 'ENCONTRADA EM ATIVOS' : 
+                  reserva14NoiteHistorico.length > 0 ? 'ENCONTRADA EM HISTÓRICO' : 
+                  'NÃO ENCONTRADA'
+        },
+        resumo_por_dia: {
+          '2024-11-10': todasReservas.filter(r => r.data === '2024-11-10'),
+          '2024-11-11': todasReservas.filter(r => r.data === '2024-11-11'),
+          '2024-11-12': todasReservas.filter(r => r.data === '2024-11-12'),
+          '2024-11-13': todasReservas.filter(r => r.data === '2024-11-13'),
+          '2024-11-14': todasReservas.filter(r => r.data === '2024-11-14'),
+          '2024-11-15': todasReservas.filter(r => r.data === '2024-11-15'),
+          '2024-11-16': todasReservas.filter(r => r.data === '2024-11-16')
+        }
       });
     });
   });
