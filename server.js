@@ -287,6 +287,8 @@ app.post('/api/agendamentos', (req, res) => {
         return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
       }
       
+
+      
       res.json({ success: true, message: 'Agendamento salvo com sucesso', id: result.insertId });
     });
   });
@@ -340,6 +342,8 @@ app.delete('/api/agendamentos/:id', (req, res) => {
       if (err) {
         return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
       }
+      
+
       
       res.json({ success: true, message: 'Agendamento cancelado com sucesso' });
     });
@@ -771,6 +775,7 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
     console.log(`📊 Usando MySQL como banco de dados`);
     console.log(`⏰ Limpeza automática de agendamentos ativada`);
+    console.log(`🔄 Polling automático a cada 0.5s para tempo real`);
   });
 }
 
@@ -1347,6 +1352,42 @@ app.get('/api/verificar-semana-10-11', (req, res) => {
           '2024-11-16': todasReservas.filter(r => r.data === '2024-11-16')
         }
       });
+    });
+  });
+});
+
+// Endpoint para verificar status dos horários em tempo real
+app.get('/api/status-horarios/:data', (req, res) => {
+  const { data } = req.params;
+  const db = createConnection();
+  
+  const query = 'SELECT horario, nome FROM agendamentos WHERE data = ?';
+  
+  db.query(query, [data], (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    // Criar objeto com status de cada horário
+    const status = {
+      manha: { ocupado: false, nome: null },
+      tarde: { ocupado: false, nome: null },
+      noite: { ocupado: false, nome: null }
+    };
+    
+    results.forEach(agendamento => {
+      status[agendamento.horario] = {
+        ocupado: true,
+        nome: agendamento.nome
+      };
+    });
+    
+    res.json({ 
+      success: true, 
+      data,
+      status,
+      timestamp: new Date().toISOString()
     });
   });
 });
