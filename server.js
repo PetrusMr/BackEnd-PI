@@ -530,71 +530,68 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
   const analises = [
     {
       componentes: [
-        { nome: 'Resistor', valor: '220Ω', quantidade: 2, cor: 'Vermelho-Vermelho-Marrom' },
-        { nome: 'LED', valor: '5mm', quantidade: 1, cor: 'Vermelho' },
-        { nome: 'Capacitor', valor: '100μF', quantidade: 1, cor: 'Azul' }
-      ],
-      total_componentes: 4,
-      confianca: '92%'
+        { nome: 'Resistor', valor: '220Ω', quantidade: 2 },
+        { nome: 'LED', valor: '5mm', quantidade: 1 },
+        { nome: 'Capacitor', valor: '100μF', quantidade: 1 }
+      ]
     },
     {
       componentes: [
-        { nome: 'Resistor', valor: '1kΩ', quantidade: 3, cor: 'Marrom-Preto-Vermelho' },
-        { nome: 'Transistor', valor: 'BC547', quantidade: 1, cor: 'Preto' },
-        { nome: 'Capacitor', valor: '22pF', quantidade: 2, cor: 'Cerâmico' }
-      ],
-      total_componentes: 6,
-      confianca: '87%'
+        { nome: 'Resistor', valor: '1kΩ', quantidade: 3 },
+        { nome: 'Transistor', valor: 'BC547', quantidade: 1 },
+        { nome: 'Capacitor', valor: '22pF', quantidade: 2 }
+      ]
     },
     {
       componentes: [
-        { nome: 'Resistor', valor: '470Ω', quantidade: 1, cor: 'Amarelo-Violeta-Marrom' },
-        { nome: 'LED', valor: '3mm', quantidade: 2, cor: 'Verde' },
-        { nome: 'Diodo', valor: '1N4007', quantidade: 1, cor: 'Preto' },
-        { nome: 'Capacitor', valor: '10μF', quantidade: 1, cor: 'Eletrolítico' }
-      ],
-      total_componentes: 5,
-      confianca: '95%'
+        { nome: 'Resistor', valor: '470Ω', quantidade: 1 },
+        { nome: 'LED', valor: '3mm', quantidade: 2 },
+        { nome: 'Diodo', valor: '1N4007', quantidade: 1 },
+        { nome: 'Capacitor', valor: '10μF', quantidade: 1 }
+      ]
     },
     {
       componentes: [
-        { nome: 'Resistor', valor: '10kΩ', quantidade: 2, cor: 'Marrom-Preto-Laranja' },
-        { nome: 'CI', valor: '555', quantidade: 1, cor: 'Preto' },
-        { nome: 'Capacitor', valor: '1000μF', quantidade: 1, cor: 'Eletrolítico' },
-        { nome: 'LED', valor: '5mm', quantidade: 3, cor: 'Azul' }
-      ],
-      total_componentes: 7,
-      confianca: '89%'
+        { nome: 'Resistor', valor: '10kΩ', quantidade: 2 },
+        { nome: 'CI', valor: '555', quantidade: 1 },
+        { nome: 'Capacitor', valor: '1000μF', quantidade: 1 },
+        { nome: 'LED', valor: '5mm', quantidade: 3 }
+      ]
+    },
+    {
+      componentes: [] // Cenário sem componentes detectados
     }
   ];
   
   const analise = analises[Math.floor(Math.random() * analises.length)];
   
+  // Criar lista para o popup
+  let listaParaPopup = [];
+  let totalItens = 0;
+  
+  if (analise.componentes.length === 0) {
+    listaParaPopup = ['0 itens detectados'];
+  } else {
+    analise.componentes.forEach(comp => {
+      listaParaPopup.push(`${comp.quantidade} ${comp.nome}`);
+      totalItens += comp.quantidade;
+    });
+  }
+  
   // Formatar o que será salvo no banco
-  const resultado_para_banco = analise.componentes.map(comp => 
-    `${comp.quantidade}x ${comp.nome} ${comp.valor}`
-  ).join(', ') + ` - Total: ${analise.total_componentes} componentes (${analise.confianca})`;
+  const resultado_para_banco = analise.componentes.length === 0 ? 
+    '0 itens detectados' :
+    analise.componentes.map(comp => 
+      `${comp.quantidade}x ${comp.nome} ${comp.valor}`
+    ).join(', ');
   
-  // Formatar resultado para exibição
-  const resultado_formatado = {
+  res.json({
     success: true,
-    analise: {
-      componentes_identificados: analise.componentes,
-      resumo: {
-        total_componentes: analise.total_componentes,
-        tipos_diferentes: analise.componentes.length,
-        confianca_analise: analise.confianca
-      },
-      detalhes: analise.componentes.map(comp => 
-        `${comp.quantidade}x ${comp.nome} ${comp.valor} (${comp.cor})`
-      ).join('\n'),
-      timestamp: new Date().toISOString()
-    },
-    // O que será salvo no banco de dados
-    resultado_scan: resultado_para_banco
-  };
-  
-  res.json(resultado_formatado);
+    itens_detectados: listaParaPopup,
+    total_itens: totalItens,
+    resultado_scan: resultado_para_banco,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.post('/api/scans/salvar-scan', (req, res) => {
@@ -1139,22 +1136,19 @@ app.post('/api/corrigir-scan-fantasma-user1', (req, res) => {
 // Teste da análise de componentes
 app.get('/api/teste-analise', (req, res) => {
   const exemplo_componentes = [
-    { nome: 'Resistor', valor: '220Ω', quantidade: 2, cor: 'Vermelho-Vermelho-Marrom' },
-    { nome: 'LED', valor: '5mm', quantidade: 1, cor: 'Vermelho' }
+    { nome: 'Resistor', quantidade: 2 },
+    { nome: 'LED', quantidade: 1 }
   ];
   
-  const resultado_banco = exemplo_componentes.map(comp => 
-    `${comp.quantidade}x ${comp.nome} ${comp.valor}`
-  ).join(', ') + ' - Total: 3 componentes (92%)';
+  const listaParaPopup = exemplo_componentes.map(comp => 
+    `${comp.quantidade} ${comp.nome}`
+  );
   
   res.json({
     success: true,
     message: 'Teste da análise de componentes',
-    exemplo: {
-      componentes: exemplo_componentes,
-      total: 3
-    },
-    resultado_scan: resultado_banco
+    itens_detectados: listaParaPopup,
+    total_itens: 3
   });
 });
 
