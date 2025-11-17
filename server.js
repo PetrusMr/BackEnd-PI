@@ -55,15 +55,16 @@ function moverAgendamentosExpirados() {
     }
     
     // Buscar agendamentos que já passaram do horário
+    const minutoAtual = agora.getMinutes();
     const selectQuery = `SELECT * FROM agendamentos WHERE 
       data < ? OR 
       (data = ? AND (
         (horario = 'manha' AND ? > 12) OR
-        (horario = 'tarde' AND ? > 17) OR
+        (horario = 'tarde' AND (? > 17 OR (? = 17 AND ? >= 45))) OR
         (horario = 'noite' AND ? > 22)
       ))`;
     
-    db.query(selectQuery, [hoje, hoje, horaAtual, horaAtual, horaAtual], (err, results) => {
+    db.query(selectQuery, [hoje, hoje, horaAtual, horaAtual, horaAtual, minutoAtual, horaAtual], (err, results) => {
       if (err) {
         console.error('❌ Erro ao buscar agendamentos expirados:', err);
         db.end();
@@ -323,8 +324,9 @@ app.delete('/api/agendamentos/:id', (req, res) => {
     if (dataAgendamento < hoje) {
       jaPasso = true;
     } else if (dataAgendamento === hoje) {
+      const minutoAtual = agora.getMinutes();
       if (agendamento.horario === 'manha' && horaAtual > 12) jaPasso = true;
-      if (agendamento.horario === 'tarde' && horaAtual > 17) jaPasso = true;
+      if (agendamento.horario === 'tarde' && (horaAtual > 17 || (horaAtual === 17 && minutoAtual >= 45))) jaPasso = true;
       if (agendamento.horario === 'noite' && horaAtual > 22) jaPasso = true;
     }
     
