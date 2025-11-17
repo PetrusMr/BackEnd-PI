@@ -57,11 +57,10 @@ function moverAgendamentosExpirados() {
     // Buscar agendamentos que já passaram do horário
     const selectQuery = `SELECT * FROM agendamentos WHERE 
       data < ? OR 
-      
       (data = ? AND (
-        (horario = 'manha' AND ? >= 13) OR
-        (horario = 'tarde' AND ? >= 18) OR
-        (horario = 'noite' AND ? >= 23)
+        (horario = 'manha' AND ? > 12) OR
+        (horario = 'tarde' AND ? > 17) OR
+        (horario = 'noite' AND ? > 22)
       ))`;
     
     db.query(selectQuery, [hoje, hoje, horaAtual, horaAtual, horaAtual], (err, results) => {
@@ -77,9 +76,9 @@ function moverAgendamentosExpirados() {
           console.log(`- ${r.nome} | ${new Date(r.data).toISOString().split('T')[0]} | ${r.horario}`);
         });
         
-        // Inserir no histórico
+        // Inserir no histórico com data corrigida
         const insertQuery = 'INSERT INTO historico_agendamentos (nome, data, horario) VALUES ?';
-        const values = results.map(r => [r.nome, r.data, r.horario]);
+        const values = results.map(r => [r.nome, hoje, r.horario]);
         
         db.query(insertQuery, [values], (err) => {
           if (err) {
@@ -324,9 +323,9 @@ app.delete('/api/agendamentos/:id', (req, res) => {
     if (dataAgendamento < hoje) {
       jaPasso = true;
     } else if (dataAgendamento === hoje) {
-      if (agendamento.horario === 'manha' && horaAtual >= 13) jaPasso = true;
-      if (agendamento.horario === 'tarde' && horaAtual >= 18) jaPasso = true;
-      if (agendamento.horario === 'noite' && horaAtual >= 23) jaPasso = true;
+      if (agendamento.horario === 'manha' && horaAtual > 12) jaPasso = true;
+      if (agendamento.horario === 'tarde' && horaAtual > 17) jaPasso = true;
+      if (agendamento.horario === 'noite' && horaAtual > 22) jaPasso = true;
     }
     
     if (jaPasso) {
@@ -1388,6 +1387,56 @@ app.get('/api/status-horarios/:data', (req, res) => {
       data,
       status,
       timestamp: new Date().toISOString()
+    });
+  });
+});
+
+// Corrigir datas incorretas no histórico
+app.get('/api/corrigir-historico-data', (req, res) => {
+  const db = createConnection();
+  const hoje = new Date().toISOString().split('T')[0];
+  
+  // Buscar reservas do histórico com data 2024-11-16
+  const queryVerificar = 'SELECT * FROM historico_agendamentos WHERE DATE(data) = "2024-11-16"';
+  
+  db.query(queryVerificar, (err, reservasIncorretas) => {
+    if (err) {
+      db.end();
+      return res.status(500).json({ success: false, message: 'Erro ao verificar histórico' });
+    }
+    
+    if (reservasIncorretas.length === 0) {
+      db.end();
+      return res.json({ 
+        success: true, 
+        message: 'Nenhuma reserva com data incorreta encontrada',
+        reservas_encontradas: 0
+      });
+    }
+    
+    // Corrigir as datas para hoje
+    const queryCorrigir = 'UPDATE historico_agendamentos SET data = ? WHERE DATE(data) = "2024-11-16"';
+    
+    db.query(queryCorrigir, [hoje], (err, result) => {
+      db.end();
+      
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Erro ao corrigir datas' });
+      }
+      
+      res.json({
+        success: true,
+        message: `${result.affectedRows} reservas corrigidas para a data de hoje`,
+        data_corrigida: hoje,
+        reservas_corrigidas: result.affectedRows,
+        detalhes: reservasIncorretas.map(r => ({
+          id: r.id,
+          nome: r.nome,
+          horario: r.horario,
+          data_anterior: r.data,
+          data_nova: hoje
+        }))
+      });
     });
   });
 });
