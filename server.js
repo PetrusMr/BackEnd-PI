@@ -639,20 +639,9 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     }
   } catch (error) {
     console.error('Erro Gemini:', error);
-    
-    // Fallback com resultados simulados
-    const resultados = [
-      '2 resistores\n1 led\n3 fios',
-      '1 capacitor\n4 resistores\n2 leds',
-      '1 protoboard\n5 jumpers\n2 resistores',
-      '3 leds\n1 transistor\n2 capacitores'
-    ];
-    
-    const resultado = resultados[Math.floor(Math.random() * resultados.length)];
-    
     res.json({ 
-      success: true, 
-      resultado: resultado
+      success: false, 
+      resultado: 'Falha na análise do Gemini. Verifique a conexão e tente novamente.'
     });
   }
 });
