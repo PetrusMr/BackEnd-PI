@@ -461,6 +461,53 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
   });
 });
 
+app.post('/api/gemini/analisar-componentes', async (req, res) => {
+  const { imageBase64 } = req.body;
+  
+  if (!imageBase64) {
+    return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
+  }
+
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=AIzaSyD61brqsqzlZMLszfWh791tfHM7bURVT-0', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            {
+              text: "Analise esta imagem e conte EXATAMENTE quantos de cada item você vê. Retorne APENAS uma lista no formato:\n\nX nome_do_item\nY outro_item\n\nExemplos:\n2 resistores\n4 leds\n1 capacitor\n3 fios\n\nFoque em componentes eletrônicos, ferramentas e objetos visíveis. Seja preciso na contagem."
+            },
+            {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: imageBase64
+              }
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      const resultado = data.candidates[0].content.parts[0].text;
+      res.json({ success: true, resultado });
+    } else {
+      throw new Error('Resposta inválida do Gemini');
+    }
+  } catch (error) {
+    console.error('Erro Gemini:', error);
+    res.json({ 
+      success: true, 
+      resultado: 'Erro na análise. Tente novamente com melhor iluminação.'
+    });
+  }
+});
+
 app.post('/api/scans/salvar-scan', (req, res) => {
   const { usuario, tipo_scan, resultado_scan, turno } = req.body;
   
@@ -510,6 +557,20 @@ app.post('/api/scans/salvar-scan', (req, res) => {
         id: result.insertId
       });
     });
+  });
+});
+
+app.delete('/api/limpar-historico', (req, res) => {
+  const db = createConnection();
+  const query = 'DELETE FROM historico_agendamentos';
+  
+  db.query(query, (err, result) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao limpar histórico' });
+    }
+    
+    res.json({ success: true, message: `${result.affectedRows} registros removidos do histórico` });
   });
 });
 
