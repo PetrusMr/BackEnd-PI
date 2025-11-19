@@ -643,8 +643,7 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
       res.json({ success: true, resultado });
     } else {
       console.log('❌ Estrutura de resposta inválida');
-      // TESTE: Forçar resultado para debug
-      res.json({ success: true, resultado: '2 resistores\n1 led\n3 fios' });
+      throw new Error('Resposta inválida do Gemini');
     }
   } catch (error) {
     console.error('❌ Erro Gemini:', error);
