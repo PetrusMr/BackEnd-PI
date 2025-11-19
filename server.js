@@ -602,11 +602,15 @@ app.post('/api/gemini/analisar-componentes', (req, res) => {
 app.post('/api/gemini/analisar-componentes', async (req, res) => {
   const { imageBase64 } = req.body;
   
+  console.log('🔍 Recebida requisição Gemini');
+  console.log('Tamanho da imagem:', imageBase64 ? imageBase64.length : 'undefined');
+  
   if (!imageBase64) {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
   try {
+    console.log('🚀 Enviando para Gemini API...');
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=AIzaSyD61brqsqzlZMLszfWh791tfHM7bURVT-0', {
       method: 'POST',
       headers: {
@@ -629,16 +633,20 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
       })
     });
 
+    console.log('Status da resposta:', response.status);
     const data = await response.json();
+    console.log('Resposta completa do Gemini:', JSON.stringify(data, null, 2));
     
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       const resultado = data.candidates[0].content.parts[0].text;
+      console.log('✅ Resultado extraido:', resultado);
       res.json({ success: true, resultado });
     } else {
+      console.log('❌ Estrutura de resposta inválida');
       throw new Error('Resposta inválida do Gemini');
     }
   } catch (error) {
-    console.error('Erro Gemini:', error);
+    console.error('❌ Erro Gemini:', error);
     res.json({ 
       success: false, 
       resultado: 'Falha na análise do Gemini. Verifique a conexão e tente novamente.'
