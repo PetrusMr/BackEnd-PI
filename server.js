@@ -620,7 +620,7 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
         contents: [{
           parts: [
             {
-              text: "Analise esta imagem e conte EXATAMENTE quantos de cada item você vê. Retorne APENAS uma lista no formato:\n\nX nome_do_item\nY outro_item\n\nExemplos:\n2 resistores\n4 leds\n1 capacitor\n3 fios\n\nFoque em componentes eletrônicos, ferramentas e objetos visíveis. Seja preciso na contagem."
+              text: "Você é um especialista em eletrônica. Analise esta imagem com MUITO CUIDADO e identifique APENAS os componentes eletrônicos que você consegue ver CLARAMENTE.\n\nSe não conseguir identificar nenhum componente eletrônico, responda: 'Nenhum componente eletrônico identificado'\n\nSe identificar componentes, liste no formato:\nX nome_do_componente\n\nExemplos válidos:\n2 resistores\n1 capacitor\n3 leds\n\nSeja MUITO preciso. NÃO invente componentes que não estão visíveis."
             },
             {
               inline_data: {
