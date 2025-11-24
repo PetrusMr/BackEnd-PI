@@ -146,6 +146,31 @@ app.post('/api/login', (req, res) => {
   });
 });
 
+// Login supervisor
+app.post('/api/login-supervisor', (req, res) => {
+  const { usuario, senha } = req.body;
+  
+  if (!usuario || !senha) {
+    return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
+  }
+  
+  const db = createConnection();
+  const query = 'SELECT * FROM supervisor WHERE usuario = ? AND senha = ?';
+  
+  db.query(query, [usuario, senha], (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    if (results.length > 0) {
+      res.json({ success: true, message: 'Login de supervisor realizado com sucesso' });
+    } else {
+      res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
+    }
+  });
+});
+
 
 
 // Teste
