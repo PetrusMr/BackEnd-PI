@@ -17,14 +17,15 @@ module.exports = (req, res) => {
     return res.status(405).json({ success: false, message: 'Método não permitido' });
   }
 
-  const { usuario, senha } = req.body;
+  const { usuario, senha, isSupervisor } = req.body;
   
   if (!usuario || !senha) {
     return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
   }
   
   const db = mysql.createConnection(dbConfig);
-  const query = 'SELECT * FROM usuarios WHERE usuario = ? AND senha = ?';
+  const tabela = isSupervisor ? 'supervisor' : 'usuarios';
+  const query = `SELECT * FROM ${tabela} WHERE usuario = ? AND senha = ?`;
   
   db.query(query, [usuario, senha], (err, results) => {
     db.end();
@@ -33,7 +34,8 @@ module.exports = (req, res) => {
     }
     
     if (results.length > 0) {
-      res.json({ success: true, message: 'Login realizado com sucesso' });
+      const message = isSupervisor ? 'Login de supervisor realizado com sucesso' : 'Login realizado com sucesso';
+      res.json({ success: true, message });
     } else {
       res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
     }
