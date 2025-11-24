@@ -11,3 +11,35 @@ node_modules/
 
 # Build
 dist/
+
+# Arquivos de teste (evitar commit acidental)
+test_*
+test-*
+*_teste.*
+*-teste.*
+testar_*
+verificar_*
+verificar-*
+debug_*
+debug-*
+criar_*
+criar-*
+limpar_*
+limpar-*
+inserir_*
+inserir-*
+apagar-*
+corrigir_*
+migrar_*
+setup_*
+setup-*
+adicionar_*
+remover_*
+recriar_*
+trocar_*
+reserva-*
+*.sql
+
+# Arquivos temporários
+*.tmp
+*.temp
