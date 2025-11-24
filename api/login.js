@@ -19,6 +19,8 @@ module.exports = (req, res) => {
 
   const { usuario, senha, isSupervisor } = req.body;
   
+  console.log('🔍 Login recebido:', { usuario, senha: '***', isSupervisor, tabela: isSupervisor ? 'supervisor' : 'usuarios' });
+  
   if (!usuario || !senha) {
     return res.status(400).json({ success: false, message: 'Usuário e senha são obrigatórios' });
   }
