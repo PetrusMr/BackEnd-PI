@@ -52,6 +52,16 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Scans - Buscar scans do usuário
+app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
+  const { nome, data, horario } = req.params;
+  
+  // Simulação temporária - substituir por banco real
+  const scans = [];
+  
+  res.json({ success: true, scans });
+});
+
 // Gemini - Análise de componentes
 app.post('/api/gemini/analisar-componentes', async (req, res) => {
   const { imageBase64 } = req.body;

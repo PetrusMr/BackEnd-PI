@@ -400,15 +400,22 @@ app.get('/api/agendamentos/lista/historico', (req, res) => {
 app.get('/api/scans/usuario/:nome/:data/:horario', (req, res) => {
   const { nome, data, horario } = req.params;
   
-  // Como não temos tabela de scans ainda, retornar dados simulados
-  const scans = [{
-    usuario: nome,
-    tipo_scan: 'entrada',
-    resultado_scan: 'Acesso autorizado',
-    data_hora: `${data} ${horario}:00`
-  }];
+  const db = createConnection();
+  const query = 'SELECT * FROM scans WHERE usuario = ? AND DATE(data_hora) = ? AND turno = ? ORDER BY data_hora';
   
-  res.json({ success: true, scans });
+  db.query(query, [nome, data, horario], (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro ao buscar scans' });
+    }
+    
+    if (results.length > 0) {
+      res.json({ success: true, scans: results });
+    } else {
+      // Se não encontrou scans, retornar array vazio
+      res.json({ success: true, scans: [] });
+    }
+  });
 });
 
 app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
