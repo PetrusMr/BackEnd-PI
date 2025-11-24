@@ -1,11 +1,11 @@
 const mysql = require('mysql2');
 
 const dbConfig = {
-  host: 'shuttle.proxy.rlwy.net',
+  host: 'switchyard.proxy.rlwy.net',
   user: 'root',
-  password: 'EnXDVvvfjWbNUhrgInfThiDFgtnKTTAD',
+  password: 'AgPxpYNuCQwqMvoJhiyWdScWQwZexCNf',
   database: 'railway',
-  port: 22828
+  port: 41445
 };
 
 module.exports = (req, res) => {

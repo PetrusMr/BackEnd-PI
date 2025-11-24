@@ -1,13 +1,11 @@
 const mysql = require('mysql2');
 
 const dbConfig = {
-  host: 'sql10.freesqldatabase.com',
-  user: 'sql10804387',
-  password: 'PfvDQC2YPa',
-  database: 'sql10804387',
-  port: 3306,
-  acquireTimeout: 60000,
-  timeout: 60000
+  host: 'switchyard.proxy.rlwy.net',
+  user: 'root',
+  password: 'AgPxpYNuCQwqMvoJhiyWdScWQwZexCNf',
+  database: 'railway',
+  port: 41445
 };
 
 function createConnection() {
