@@ -146,53 +146,7 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// Login supervisor
-app.post('/api/login-supervisor', (req, res) => {
-  const { usuario, senha } = req.body;
-  
-  const db = createConnection();
-  
-  // Criar tabela supervisor se não existir
-  const createSupervisor = `CREATE TABLE IF NOT EXISTS supervisor (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    usuario VARCHAR(50) UNIQUE NOT NULL,
-    senha VARCHAR(50) NOT NULL,
-    email VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`;
-  
-  db.query(createSupervisor, (err) => {
-    if (err) {
-      db.end();
-      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-    }
-    
-    // Inserir supervisor padrão
-    const insertSupervisor = `INSERT IGNORE INTO supervisor (usuario, senha, email) VALUES ('supervisor', 'admin123', 'supervisor@teste.com')`;
-    
-    db.query(insertSupervisor, (err) => {
-      if (err) {
-        db.end();
-        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-      }
-      
-      // Verificar login
-      const query = 'SELECT * FROM supervisor WHERE usuario = ? AND senha = ?';
-      db.query(query, [usuario, senha], (err, results) => {
-        db.end();
-        if (err) {
-          return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-        }
-        
-        if (results.length > 0) {
-          res.json({ success: true, message: 'Login de supervisor realizado com sucesso' });
-        } else {
-          res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
-        }
-      });
-    });
-  });
-});
+
 
 // Teste
 app.get('/api/test', (req, res) => {
