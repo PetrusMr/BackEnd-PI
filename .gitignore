@@ -1,0 +1,13 @@
+# Dependências
+node_modules/
+
+# Arquivos de ambiente (CHAVES API)
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+
+# Build
+dist/

@@ -501,80 +501,7 @@ app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
   });
 });
 
-app.post('/api/gemini/analisar-componentes', (req, res) => {
-  const { imageBase64 } = req.body;
-  
-  if (!imageBase64) {
-    return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
-  }
-
-  // Simulação de análise de componentes com diferentes cenários
-  const analises = [
-    {
-      componentes: [
-        { nome: 'Resistor', valor: '220Ω', quantidade: 2 },
-        { nome: 'LED', valor: '5mm', quantidade: 1 },
-        { nome: 'Capacitor', valor: '100μF', quantidade: 1 }
-      ]
-    },
-    {
-      componentes: [
-        { nome: 'Resistor', valor: '1kΩ', quantidade: 3 },
-        { nome: 'Transistor', valor: 'BC547', quantidade: 1 },
-        { nome: 'Capacitor', valor: '22pF', quantidade: 2 }
-      ]
-    },
-    {
-      componentes: [
-        { nome: 'Resistor', valor: '470Ω', quantidade: 1 },
-        { nome: 'LED', valor: '3mm', quantidade: 2 },
-        { nome: 'Diodo', valor: '1N4007', quantidade: 1 },
-        { nome: 'Capacitor', valor: '10μF', quantidade: 1 }
-      ]
-    },
-    {
-      componentes: [
-        { nome: 'Resistor', valor: '10kΩ', quantidade: 2 },
-        { nome: 'CI', valor: '555', quantidade: 1 },
-        { nome: 'Capacitor', valor: '1000μF', quantidade: 1 },
-        { nome: 'LED', valor: '5mm', quantidade: 3 }
-      ]
-    },
-    {
-      componentes: [] // Cenário sem componentes detectados
-    }
-  ];
-  
-  const analise = analises[Math.floor(Math.random() * analises.length)];
-  
-  // Criar lista para o popup
-  let listaParaPopup = [];
-  let totalItens = 0;
-  
-  if (analise.componentes.length === 0) {
-    listaParaPopup = ['0 itens detectados'];
-  } else {
-    analise.componentes.forEach(comp => {
-      listaParaPopup.push(`${comp.quantidade} ${comp.nome}`);
-      totalItens += comp.quantidade;
-    });
-  }
-  
-  // Formatar o que será salvo no banco
-  const resultado_para_banco = analise.componentes.length === 0 ? 
-    '0 itens detectados' :
-    analise.componentes.map(comp => 
-      `${comp.quantidade}x ${comp.nome} ${comp.valor}`
-    ).join(', ');
-  
-  res.json({
-    success: true,
-    itens_detectados: listaParaPopup,
-    total_itens: totalItens,
-    resultado_scan: resultado_para_banco,
-    timestamp: new Date().toISOString()
-  });
-});
+// ROTA REMOVIDA - Era duplicada e retornava dados simulados
 
 app.post('/api/gemini/analisar-componentes', async (req, res) => {
   const { imageBase64 } = req.body;
@@ -586,9 +513,21 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
+  // Usar chave API (fallback para desenvolvimento)
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCjKgbMAcEN77d23aupzTJxFcwnY7Libqw';
+  
+  if (GEMINI_API_KEY === 'AIzaSyD61brqsqzlZMLszfWh791tfHM7bURVT-0') {
+    console.log('❌ Chave API vazada detectada');
+    return res.json({ 
+      success: false, 
+      resultado: 'Chave API comprometida. Configure nova chave no Vercel.',
+      error: 'API_KEY_LEAKED'
+    });
+  }
+
   try {
     console.log('🚀 Enviando para Gemini API...');
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyD61brqsqzlZMLszfWh791tfHM7bURVT-0', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -597,11 +536,11 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
         contents: [{
           parts: [
             {
-              text: "Analise esta imagem e identifique os objetos que você consegue ver CLARAMENTE. PRIORIZE componentes eletrônicos (resistores, capacitores, LEDs, CIs, etc.), mas se não houver nenhum, identifique outros objetos visíveis.\n\nRetorne no formato:\nX nome_do_objeto\n\nExemplos:\n2 resistores\n1 fone bluetooth\n1 caneta\n3 dedos\n\nSe não conseguir identificar NADA, responda: 'Nenhum objeto identificado'\n\nSeja preciso e honesto sobre o que realmente vê."
+              text: "Analise esta imagem e identifique componentes eletrônicos visíveis. Procure por:\n\n- Resistores (componentes cilíndricos com listras coloridas)\n- LEDs (pequenas lâmpadas)\n- Capacitores (componentes cilíndricos ou retangulares)\n- Fios e cabos\n- Protoboards (placas com furos)\n- Circuitos integrados (chips)\n- Transistores\n- Diodos\n- Sensores\n- Displays\n- Botões e chaves\n\nPara cada item encontrado, conte quantos você vê e liste no formato:\nX nome_do_componente\n\nExemplos:\n2 resistores\n1 led vermelho\n3 fios\n1 protoboard\n\nSe realmente não conseguir identificar NENHUM componente eletrônico, responda apenas: 'Nenhum componente eletrônico identificado'\n\nSeja detalhado e conte todos os itens visíveis."
             },
             {
               inline_data: {
-                mime_type: "image/jpeg",
+                mime_type: imageBase64.startsWith('/9j/') ? "image/jpeg" : "image/png",
                 data: imageBase64
               }
             }
@@ -614,19 +553,37 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     const data = await response.json();
     console.log('Resposta completa do Gemini:', JSON.stringify(data, null, 2));
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+    if (data.error) {
+      console.error('❌ Erro da API Gemini:', data.error);
+      if (data.error.message && data.error.message.includes('leaked')) {
+        return res.json({ 
+          success: false, 
+          resultado: 'Chave API foi reportada como comprometida. Entre em contato com o administrador.',
+          error: 'API_KEY_LEAKED'
+        });
+      }
+      throw new Error(data.error.message || 'Erro da API Gemini');
+    }
+    
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
       const resultado = data.candidates[0].content.parts[0].text;
-      console.log('✅ Resultado extraido:', resultado);
-      res.json({ success: true, resultado });
+      console.log('✅ Resultado extraído:', resultado);
+      
+      if (resultado && resultado.trim().length > 0) {
+        res.json({ success: true, resultado: resultado.trim() });
+      } else {
+        res.json({ success: false, resultado: 'Nenhum componente identificado' });
+      }
     } else {
       console.log('❌ Estrutura de resposta inválida');
-      throw new Error('Resposta inválida do Gemini');
+      res.json({ success: false, resultado: 'Nenhum componente identificado' });
     }
   } catch (error) {
     console.error('❌ Erro Gemini:', error);
     res.json({ 
       success: false, 
-      resultado: 'Falha na análise do Gemini. Verifique a conexão e tente novamente.'
+      resultado: 'Erro ao analisar imagem. Tente novamente.',
+      error: error.message
     });
   }
 });
