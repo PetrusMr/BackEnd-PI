@@ -16,13 +16,11 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 require('dotenv').config();
 
 const dbConfig = {
-  host: 'shuttle.proxy.rlwy.net',
+  host: 'switchyard.proxy.rlwy.net',
   user: 'root',
-  password: 'EnXDVvvfjWbNUhrgInfThiDFgtnKTTAD',
+  password: 'AgPxpYNuCQwqMvoJhiyWdScWQwZexCNf',
   database: 'railway',
-  port: 22828,
-  acquireTimeout: 60000,
-  timeout: 60000
+  port: 41445
 };
 
 function createConnection() {
