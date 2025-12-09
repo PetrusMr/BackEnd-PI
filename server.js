@@ -548,7 +548,7 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCXkmT-ZF3bzit_AzBtrQFEufAiLRi3qXA';
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCyPA5_4J7OEgHeMqqWM8tL38RFBwx5aew';
   
   console.log('🔑 Chave API carregada:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
   
@@ -605,14 +605,20 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     
     if (data.error) {
       console.error('❌ Erro da API Gemini:', data.error);
-      if (data.error.message && data.error.message.includes('leaked')) {
+      
+      if (data.error.message && data.error.message.includes('quota')) {
         return res.json({ 
           success: false, 
-          resultado: 'Chave API foi reportada como comprometida. Entre em contato com o administrador.',
-          error: 'API_KEY_LEAKED'
+          resultado: 'Limite de uso atingido. Aguarde ou ative o billing no Google Cloud Console.',
+          error: 'QUOTA_EXCEEDED'
         });
       }
-      throw new Error(data.error.message || 'Erro da API Gemini');
+      
+      return res.json({ 
+        success: false, 
+        resultado: data.error.message || 'Erro ao analisar imagem.',
+        error: data.error.message
+      });
     }
     
     if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
@@ -631,11 +637,19 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro Gemini:', error);
     console.error('❌ Stack:', error.stack);
+    
+    if (error.message && error.message.includes('quota')) {
+      return res.json({ 
+        success: false, 
+        resultado: 'Limite de uso atingido. Aguarde ou ative o billing no Google Cloud Console.',
+        error: 'QUOTA_EXCEEDED'
+      });
+    }
+    
     res.json({ 
       success: false, 
       resultado: `Erro: ${error.message}`,
-      error: error.message,
-      stack: error.stack
+      error: error.message
     });
   }
 });
