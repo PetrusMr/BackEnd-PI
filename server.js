@@ -219,6 +219,41 @@ app.get('/api/agendamentos/usuario/:nome', (req, res) => {
   });
 });
 
+// Rota otimizada para buscar múltiplas datas de uma vez
+app.post('/api/agendamentos/multiplas-datas', (req, res) => {
+  const { datas } = req.body;
+  
+  if (!datas || !Array.isArray(datas) || datas.length === 0) {
+    return res.status(400).json({ success: false, message: 'Array de datas é obrigatório' });
+  }
+  
+  const db = createConnection();
+  const placeholders = datas.map(() => '?').join(',');
+  const query = `SELECT data, horario FROM agendamentos WHERE data IN (${placeholders})`;
+  
+  db.query(query, datas, (err, results) => {
+    db.end();
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+    
+    // Organizar resultados por data
+    const horariosPorData = {};
+    datas.forEach(data => {
+      horariosPorData[data] = [];
+    });
+    
+    results.forEach(row => {
+      const dataFormatada = new Date(row.data).toISOString().split('T')[0];
+      if (horariosPorData[dataFormatada]) {
+        horariosPorData[dataFormatada].push(row.horario);
+      }
+    });
+    
+    res.json({ success: true, horariosPorData });
+  });
+});
+
 app.get('/api/agendamentos/:data', (req, res) => {
   const { data } = req.params;
   const db = createConnection();
@@ -765,13 +800,15 @@ app.get('/api/setup', (req, res) => {
 
 
 
-// Executar limpeza automática a cada hora
+// Executar limpeza automática a cada 2 horas (reduzido para evitar sobrecarga)
 setInterval(() => {
   moverAgendamentosExpirados();
-}, 60 * 60 * 1000); // 1 hora
+}, 2 * 60 * 60 * 1000); // 2 horas
 
-// Executar limpeza inicial ao iniciar o servidor
-moverAgendamentosExpirados();
+// Executar limpeza inicial após 30 segundos (para não travar o início)
+setTimeout(() => {
+  moverAgendamentosExpirados();
+}, 30000);
 
 // Para desenvolvimento local
 if (process.env.NODE_ENV !== 'production') {
