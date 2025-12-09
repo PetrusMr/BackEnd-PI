@@ -563,6 +563,9 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
 
   try {
     console.log('🚀 Enviando para Gemini API...');
+    console.log('📏 Tamanho base64:', imageBase64.length);
+    console.log('🔑 Usando chave:', GEMINI_API_KEY.substring(0, 10) + '...');
+    
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
@@ -585,9 +588,20 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
       })
     });
 
-    console.log('Status da resposta:', response.status);
+    console.log('✅ Status da resposta:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erro HTTP:', errorText);
+      return res.json({ 
+        success: false, 
+        resultado: `Erro ${response.status}: ${errorText}`,
+        error: errorText
+      });
+    }
+    
     const data = await response.json();
-    console.log('Resposta completa do Gemini:', JSON.stringify(data, null, 2));
+    console.log('📦 Resposta recebida:', JSON.stringify(data).substring(0, 200));
     
     if (data.error) {
       console.error('❌ Erro da API Gemini:', data.error);
@@ -616,10 +630,12 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Erro Gemini:', error);
+    console.error('❌ Stack:', error.stack);
     res.json({ 
       success: false, 
-      resultado: 'Erro ao analisar imagem. Tente novamente.',
-      error: error.message
+      resultado: `Erro: ${error.message}`,
+      error: error.message,
+      stack: error.stack
     });
   }
 });
