@@ -550,16 +550,17 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCyPA5_4J7OEgHeMqqWM8tL38RFBwx5aew';
   
-  // MODO TEMPORÁRIO: Retornar sucesso sem análise real
-  console.log('⚠️ MODO TEMPORÁRIO: Quota excedida, retornando resultado simulado');
-  return res.json({ 
-    success: true, 
-    resultado: '1 componente detectado\n\nNota: Análise IA temporariamente indisponível. Sistema funcionando em modo manual.'
-  });
-  */
-
+  console.log('🔑 Chave API carregada:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
   
-  /* DESCOMENTE QUANDO TIVER CHAVE VÁLIDA:
+  if (!GEMINI_API_KEY) {
+    console.log('❌ Chave API não encontrada');
+    return res.json({ 
+      success: false, 
+      resultado: 'Chave API não configurada.',
+      error: 'API_KEY_MISSING'
+    });
+  }
+
   try {
     console.log('🚀 Enviando para Gemini API...');
     console.log('📏 Tamanho base64:', imageBase64.length);
@@ -651,7 +652,6 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
       error: error.message
     });
   }
-  */
 });
 
 app.post('/api/scans/salvar-scan', (req, res) => {
