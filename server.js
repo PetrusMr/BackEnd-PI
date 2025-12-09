@@ -554,7 +554,7 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     imageBase64 = imageBase64.substring(0, 4 * 1024 * 1024);
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB6BQhvnkN2Vh9KivEy-8JMepWkQlK4pgI';
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyD61brqsqzlZMLszfWh791tfHM7bURVT-0';
   console.log('🔑 Usando chave:', GEMINI_API_KEY.substring(0, 15) + '...');
 
   try {
@@ -562,7 +562,7 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     console.log('📏 Tamanho base64:', imageBase64.length);
     console.log('🔑 Usando chave:', GEMINI_API_KEY.substring(0, 10) + '...');
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -588,11 +588,21 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Erro:', response.status, errorText.substring(0, 200));
+      console.error('❌ Erro HTTP:', response.status, errorText.substring(0, 500));
+      
+      let mensagemErro = 'Erro ao processar imagem';
+      if (response.status === 400) {
+        mensagemErro = 'Chave API inválida ou modelo não encontrado';
+      } else if (response.status === 403) {
+        mensagemErro = 'Acesso negado - verifique a chave API';
+      } else if (response.status === 429) {
+        mensagemErro = 'Limite de uso excedido';
+      }
+      
       return res.json({ 
         success: false, 
-        resultado: 'Erro ao processar imagem. Tente novamente.',
-        error: `HTTP ${response.status}`
+        resultado: mensagemErro,
+        error: `HTTP ${response.status}: ${errorText.substring(0, 100)}`
       });
     }
     
