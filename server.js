@@ -548,7 +548,7 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCyPA5_4J7OEgHeMqqWM8tL38RFBwx5aew';
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB6BQhvnkN2Vh9KivEy-8JMepWkQlK4pgI';
   
   console.log('🔑 Chave API carregada:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
   
