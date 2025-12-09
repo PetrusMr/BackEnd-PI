@@ -539,27 +539,23 @@ app.get('/api/agendamentos/ativo/:usuario', (req, res) => {
 // ROTA REMOVIDA - Era duplicada e retornava dados simulados
 
 app.post('/api/gemini/analisar-componentes', async (req, res) => {
-  const { imageBase64 } = req.body;
+  let { imageBase64 } = req.body;
   
   console.log('🔍 Recebida requisição Gemini');
-  console.log('Tamanho da imagem:', imageBase64 ? imageBase64.length : 'undefined');
+  console.log('Tamanho original:', imageBase64 ? imageBase64.length : 'undefined');
   
   if (!imageBase64) {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB6BQhvnkN2Vh9KivEy-8JMepWkQlK4pgI';
-  
-  console.log('🔑 Chave API carregada:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
-  
-  if (!GEMINI_API_KEY) {
-    console.log('❌ Chave API não encontrada');
-    return res.json({ 
-      success: false, 
-      resultado: 'Chave API não configurada.',
-      error: 'API_KEY_MISSING'
-    });
+  // Limitar tamanho da imagem (max 4MB em base64)
+  if (imageBase64.length > 4 * 1024 * 1024) {
+    console.log('⚠️ Imagem muito grande, truncando...');
+    imageBase64 = imageBase64.substring(0, 4 * 1024 * 1024);
   }
+
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyB6BQhvnkN2Vh9KivEy-8JMepWkQlK4pgI';
+  console.log('🔑 Usando chave:', GEMINI_API_KEY.substring(0, 15) + '...');
 
   try {
     console.log('🚀 Enviando para Gemini API...');
@@ -575,11 +571,11 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
         contents: [{
           parts: [
             {
-              text: "Analise esta imagem e identifique componentes eletrônicos visíveis. Procure por:\n\n- Resistores (componentes cilíndricos com listras coloridas)\n- LEDs (pequenas lâmpadas)\n- Capacitores (componentes cilíndricos ou retangulares)\n- Fios e cabos\n- Protoboards (placas com furos)\n- Circuitos integrados (chips)\n- Transistores\n- Diodos\n- Sensores\n- Displays\n- Botões e chaves\n\nPara cada item encontrado, conte quantos você vê e liste no formato:\nX nome_do_componente\n\nExemplos:\n2 resistores\n1 led vermelho\n3 fios\n1 protoboard\n\nSe realmente não conseguir identificar NENHUM componente eletrônico, responda apenas: 'Nenhum componente eletrônico identificado'\n\nSeja detalhado e conte todos os itens visíveis."
+              text: "Liste os componentes eletrônicos que você vê nesta imagem. Formato: quantidade + nome. Exemplo: 2 resistores, 1 led."
             },
             {
               inline_data: {
-                mime_type: imageBase64.startsWith('/9j/') ? "image/jpeg" : "image/png",
+                mime_type: "image/jpeg",
                 data: imageBase64
               }
             }
@@ -588,15 +584,15 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
       })
     });
 
-    console.log('✅ Status da resposta:', response.status);
+    console.log('✅ Status:', response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Erro HTTP:', errorText);
+      console.error('❌ Erro:', response.status, errorText.substring(0, 200));
       return res.json({ 
         success: false, 
-        resultado: `Erro ${response.status}: ${errorText}`,
-        error: errorText
+        resultado: 'Erro ao processar imagem. Tente novamente.',
+        error: `HTTP ${response.status}`
       });
     }
     
