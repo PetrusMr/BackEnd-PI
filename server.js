@@ -548,14 +548,16 @@ app.post('/api/gemini/analisar-componentes', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Imagem é obrigatória' });
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCXkmT-ZF3bzit_AzBtrQFEufAiLRi3qXA';
   
-  if (GEMINI_API_KEY === 'AIzaSyD61brqsqzlZMLszfWh791tfHM7bURVT-0') {
-    console.log('❌ Chave API vazada detectada');
+  console.log('🔑 Chave API carregada:', GEMINI_API_KEY ? 'SIM' : 'NÃO');
+  
+  if (!GEMINI_API_KEY) {
+    console.log('❌ Chave API não encontrada');
     return res.json({ 
       success: false, 
-      resultado: 'Chave API comprometida. Configure nova chave no Vercel.',
-      error: 'API_KEY_LEAKED'
+      resultado: 'Chave API não configurada.',
+      error: 'API_KEY_MISSING'
     });
   }
 
